@@ -34,17 +34,23 @@ class BoothDownloader
         }
         
         var dir = Directory.CreateDirectory(BoothID);
-
         var index = 1;
-        foreach (string img in images)
+        // create image taskfactory
+        var tasks = images.Select(url => Task.Factory.StartNew(state =>
         {
-            Console.WriteLine(img);
-            new WebClient().DownloadFile(img, dir + "\\" + BoothID + "_" + index + ".png");
+            using var client = new WebClient();
+            var urls = (string)state;
+            Console.WriteLine("starting to download {0}", urls);
+            var result = client.DownloadData(urls);
+            File.WriteAllBytesAsync(dir + "\\" + BoothID + "_" + index + ".png", result);
+            Console.WriteLine("finished downloading {0}", urls);
             index++;
-        }
+        }, url)).ToArray();
+
+        Task.WaitAll(tasks);
         
         Console.WriteLine("Done!");
-        Thread.Sleep(1000);
+        Thread.Sleep(2000);
         
         Environment.Exit(0);
     }

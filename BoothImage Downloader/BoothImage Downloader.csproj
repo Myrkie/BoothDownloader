@@ -6,8 +6,9 @@
         <RootNamespace>BoothImage_Downloader</RootNamespace>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
-        <AssemblyVersion>V1.0</AssemblyVersion>
-        <FileVersion>V1.0</FileVersion>
+        <AssemblyVersion>2.0</AssemblyVersion>
+        <FileVersion>2.0</FileVersion>
+        <PackageVersion>2.0.0</PackageVersion>
     </PropertyGroup>
 
 </Project>
