@@ -41,7 +41,7 @@ namespace BoothDownloader
 
             #endregion
 
-            #region Argument Check
+            #region ValidationCheck
 
             if (JsonConfig._config._firstboot)
             {
@@ -68,6 +68,11 @@ namespace BoothDownloader
                 _cookievalid = false;
                 JsonConfig.Configure.forcesave();
             }
+
+            #endregion
+            
+            #region Argument Check
+            
 
             if (args.Length == 0)
             {
