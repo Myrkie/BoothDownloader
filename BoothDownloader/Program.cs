@@ -141,7 +141,7 @@ namespace BoothDownloader
 
             #region Directories
 
-            var maindir = Directory.CreateDirectory("BoothDownloader");
+            var maindir = Directory.CreateDirectory("BoothDownloaderOut");
             var iddir = Directory.CreateDirectory(maindir + "/" + _boothId);
             var filedir = Directory.CreateDirectory(iddir + "/" + "Binary");
 
@@ -198,7 +198,11 @@ namespace BoothDownloader
             Console.WriteLine("Zipped!");
             
             Console.WriteLine("Done!");
-
+            
+            if (args.Length != 0)
+            {
+                Console.WriteLine("ENVFilePATH: " + iddir + ".zip");
+            }
             Environment.Exit(0);
 
             #endregion
