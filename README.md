@@ -1,6 +1,7 @@
 ﻿# BoothDownloader
-Downloads all images and free files from a booth item's image gallery.
+Downloads all images and free files from a booth item's gallery.
 
+https://booth.pm/
 
 # Use
 > sign into booth and grab your accounts Cookie called `_plaza_session_nktz7u` and prove this to the console app or paste into generated BDConfig.json File
