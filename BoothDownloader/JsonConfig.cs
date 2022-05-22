@@ -14,8 +14,11 @@ namespace BoothDownloader
         {
             [JsonProperty("Cookie")]
             public string _Cookie { get; set; } = "";
+            [JsonProperty("FirstBoot")]
 
             public bool _firstboot { get; set; } = true;
+            [JsonProperty("Auto_Zip")]
+            public bool _autozip { get; set; } = true;
         }
 
         public static class Configure

@@ -23,6 +23,7 @@ Usable format:
 ```json
 {
   "Cookie": "~Token Goes Here~",
-  "_firstboot": false
+  "FirstBoot": false,
+  "Auto_Zip": true
 }
 ```

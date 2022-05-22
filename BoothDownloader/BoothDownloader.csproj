@@ -6,9 +6,9 @@
         <RootNamespace>BoothDownloader</RootNamespace>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
-        <AssemblyVersion>5.0</AssemblyVersion>
-        <FileVersion>5.0</FileVersion>
-        <PackageVersion>5.0.0</PackageVersion>
+        <AssemblyVersion>6.0</AssemblyVersion>
+        <FileVersion>6.0</FileVersion>
+        <PackageVersion>6.0.0</PackageVersion>
         <AssemblyName>BoothDownloader</AssemblyName>
         <PackageId>BoothDownloader</PackageId>
         <Authors>BoothDownloader</Authors>

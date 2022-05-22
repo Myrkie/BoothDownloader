@@ -22,7 +22,6 @@ namespace BoothDownloader
 
             #endregion
             
-            
             #region Regexs
 
             // thanks to https://github.com/Nekromateion for imageRegex
@@ -200,26 +199,34 @@ namespace BoothDownloader
 
             #endregion
 
-            #region Exit Successfully
-            
+            #region Compression
+
             Thread.Sleep(1500);
 
-            if (File.Exists(iddir + ".zip"))
+            if (JsonConfig._config._autozip)
             {
-                Console.WriteLine("File already exists. Deleting...");
-                File.Delete(iddir + ".zip");
+                if (File.Exists(iddir + ".zip"))
+                {
+                    Console.WriteLine("File already exists. Deleting...");
+                    File.Delete(iddir + ".zip");
+                }
+            
+                ZipFile.CreateFromDirectory(iddir.ToString(), iddir + ".zip"); 
+                Directory.Delete(iddir.ToString(), true);
+                Console.WriteLine("Zipped!");
             }
             
-            ZipFile.CreateFromDirectory(iddir.ToString(), iddir + ".zip"); 
-            Directory.Delete(iddir.ToString(), true);
-            Console.WriteLine("Zipped!");
-            
             Console.WriteLine("Done!");
+
+            #endregion
             
-            if (args.Length != 0)
+            #region Exit Successfully
+            
+            if (args.Length != 0 && JsonConfig._config._autozip)
             {
                 Console.WriteLine("ENVFilePATH: " + iddir + ".zip");
             }
+            
             Environment.Exit(0);
 
             #endregion
