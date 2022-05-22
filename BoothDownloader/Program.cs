@@ -93,7 +93,10 @@ namespace BoothDownloader
 
             // force ID for all download strings for subdomain support
 #pragma warning disable SYSLIB0014
-            _html = new WebClient().DownloadString(Stdurl + _boothId);
+            var webClient = new WebClient();
+            webClient.Headers.Add(HttpRequestHeader.Cookie, "adult=t");
+            _html = webClient.DownloadString(Stdurl + _boothId);
+            
 #pragma warning restore SYSLIB0014
 
             #endregion
@@ -119,6 +122,11 @@ namespace BoothDownloader
                 Console.WriteLine("No downloadables found. skipping login...");
             }
 
+            if (Directory.Exists(_boothId))
+            {
+                Console.WriteLine("Directory already exists. Deleting...");
+                Directory.Delete(_boothId, true);
+            }
 
             Console.WriteLine("Downloading ID: " + _boothId);
 
@@ -155,6 +163,7 @@ namespace BoothDownloader
                 var imagetasks = images.Select(url => Task.Factory.StartNew(state =>
                 {
                     using var client = new Webclientsubclass();
+                    client.Headers.Add(HttpRequestHeader.Cookie, "adult=t");
                     var urls = (string) state!;
                     Console.WriteLine("starting to download: {0}", urls);
                     var result = client.DownloadData(urls);
@@ -174,6 +183,7 @@ namespace BoothDownloader
                 var downloadtasks = downloadables.Select(url => Task.Factory.StartNew(state =>
                 {
                     using var client = new Webclientsubclass();
+                    client.Headers.Add(HttpRequestHeader.Cookie, "adult=t");
                     client.Headers.Add(HttpRequestHeader.Cookie, "_plaza_session_nktz7u" + "=" + JsonConfig._config._Cookie);
                     var urls = (string) state!;
                     Console.WriteLine("starting to download: {0}", urls);
@@ -192,6 +202,12 @@ namespace BoothDownloader
             #region Exit Successfully
             
             Thread.Sleep(1500);
+
+            if (File.Exists(iddir + ".zip"))
+            {
+                Console.WriteLine("File already exists. Deleting...");
+                File.Delete(iddir + ".zip");
+            }
             
             ZipFile.CreateFromDirectory(iddir.ToString(), iddir + ".zip"); 
             Directory.Delete(iddir.ToString(), true);
