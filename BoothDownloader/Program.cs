@@ -17,6 +17,7 @@ namespace BoothDownloader
         {
             #region JsonConfig
 
+            Console.Title = $"BoothDownloader - V{typeof(BoothDownloader).Assembly.GetName().Version}";
             JsonConfig.Configure.load();
 
             #endregion
