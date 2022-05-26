@@ -183,7 +183,6 @@ namespace BoothDownloader
                 var downloadtasks = downloadables.Select(url => Task.Factory.StartNew(state =>
                 {
                     using var client = new Webclientsubclass();
-                    client.Headers.Add(HttpRequestHeader.Cookie, "adult=t");
                     client.Headers.Add(HttpRequestHeader.Cookie, "_plaza_session_nktz7u" + "=" + JsonConfig._config._Cookie);
                     var urls = (string) state!;
                     Console.WriteLine("starting to download: {0}", urls);
