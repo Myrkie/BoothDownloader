@@ -30,10 +30,13 @@ namespace BoothDownloader
             // secondary regex if jpg is not found
             var imageRegexPng =
                 new Regex(@"https\:\/\/booth\.pximg\.net\/[a-f0-9-]{0,}\/i\/[0-9]{0,}\/[a-zA-Z0-9\-_]{0,}\.(png)");
+            // third regex for gifs
+            var imageRegexGif =
+                new Regex(@"https\:\/\/booth\.pximg\.net\/[a-f0-9-]{0,}\/i\/[0-9]{0,}\/[a-zA-Z0-9\-_]{0,}\.(gif)");
             // ID Regex
             var idRegex = new Regex(@"[^/]+(?=/$|$)");
 
-            var guidRegex = new Regex(@"[a-f0-9-]{0,}\/i\/[0-9]{0,}\/[a-zA-Z0-9\-_]{0,}\.(png|jpg)");
+            var guidRegex = new Regex(@"[a-f0-9-]{0,}\/i\/[0-9]{0,}\/[a-zA-Z0-9\-_]{0,}\.(png|jpg|gif)");
 
             var getDlRegex = new Regex(@"https\:\/\/booth\.pm\/downloadables\/[0-9]{0,}");
 
@@ -105,15 +108,23 @@ namespace BoothDownloader
 
             var imageCollection = imageRegex.Matches(_html);
             var downloadCollection = getDlRegex.Matches(_html);
+            var gifCollection = imageRegexGif.Matches(_html);
 
             var downloadables = new HashSet<string>();
             var images = new HashSet<string>();
+            var gifs = new HashSet<string>();
 
             // create image collection
             if (imageCollection.Count == 0)
             {
                 Console.WriteLine("No images found. trying with regex png...");
                 imageCollection = imageRegexPng.Matches(_html);
+            }
+            
+            // crate gif collection
+            if (gifCollection.Count == 0)
+            {
+                Console.WriteLine("No gifs found.");
             }
 
             // create download collection
@@ -138,6 +149,12 @@ namespace BoothDownloader
                     downloadables.Add(downloadurl.Value);
                 }
             }else Console.WriteLine("Cookie is not valid. Skipping downloads...");
+            
+            // create gif hashset
+            foreach (Match gifurl in gifCollection)
+            {
+                gifs.Add(gifurl.Value);
+            }
 
             // create image hashset
             foreach (Match match in imageCollection)
@@ -156,6 +173,25 @@ namespace BoothDownloader
             #endregion
 
             #region TaskFactories
+            
+            // create gif task factory
+            if (gifs.Count > 0)
+            {
+                var giftasks = gifs.Select(url => Task.Factory.StartNew(state =>
+                {
+                    using var client = new Webclientsubclass();
+                    client.Headers.Add(HttpRequestHeader.Cookie, "adult=t");
+                    var urls = (string) state!;
+                    Console.WriteLine("starting to download: {0}", urls);
+                    var result = client.DownloadData(urls);
+                    var name = guidRegex.Match(urls).ToString().Split('/').Last();
+                    Console.WriteLine("name: " + name);
+                    File.WriteAllBytesAsync(iddir + "/" + name, result);
+                    Console.WriteLine("finished downloading: {0}", urls);
+                }, url)).ToArray();
+
+                Task.WaitAll(giftasks);
+            }else Console.WriteLine("No images found skipping downloader.");
 
             // create image task factory
             if (images.Count > 0)

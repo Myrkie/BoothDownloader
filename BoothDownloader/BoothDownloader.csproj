@@ -6,12 +6,13 @@
         <RootNamespace>BoothDownloader</RootNamespace>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
-        <AssemblyVersion>6.1</AssemblyVersion>
-        <FileVersion>6.1</FileVersion>
-        <PackageVersion>6.1.0</PackageVersion>
+        <AssemblyVersion>6.2</AssemblyVersion>
+        <FileVersion>6.2</FileVersion>
+        <PackageVersion>6.2.0</PackageVersion>
         <AssemblyName>BoothDownloader</AssemblyName>
         <PackageId>BoothDownloader</PackageId>
         <Authors>BoothDownloader</Authors>
+        <ApplicationIcon>Icon\store-logo-booth.ico</ApplicationIcon>
     </PropertyGroup>
 
     <ItemGroup>
