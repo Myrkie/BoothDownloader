@@ -191,7 +191,7 @@ namespace BoothDownloader
                 }, url)).ToArray();
 
                 Task.WaitAll(giftasks);
-            }else Console.WriteLine("No images found skipping downloader.");
+            }else Console.WriteLine("No gifs found skipping downloader.");
 
             // create image task factory
             if (images.Count > 0)
