@@ -57,16 +57,17 @@ namespace BoothDownloader
             }
 
             using var cookieclient = new Webclientsubclass();
-            cookieclient.Headers.Add(HttpRequestHeader.Cookie, "_plaza_session_nktz7u" + "=" + JsonConfig._config._Cookie);
+            cookieclient.Headers.Add(HttpRequestHeader.Cookie, "_plaza_session_nktz7u=" + JsonConfig._config._Cookie);
             cookieclient.DownloadString(Stdurl2);
+            // Checks if cookie is valid by checking if the page is not redirected to login
             if (cookieclient.ResponseUri!.ToString() == Stdurl2)
             {
-                Console.WriteLine("Cookie is valid!");
+                Console.WriteLine("Cookie is valid! - file downloads will function.");
                 _cookievalid = true;
             }
             else
             {
-                Console.WriteLine("Cookie is not valid downloads will not function!\nUpdate your cookie in the config file.");
+                Console.WriteLine("Cookie is not valid file downloads will not function!\nImage downloads will still function\nUpdate your cookie in the config file.");
                 JsonConfig._config._Cookie = "";
                 _cookievalid = false;
                 JsonConfig.Configure.forcesave();
@@ -98,6 +99,7 @@ namespace BoothDownloader
 #pragma warning disable SYSLIB0014
             var webClient = new WebClient();
             webClient.Headers.Add(HttpRequestHeader.Cookie, "adult=t");
+            if (_cookievalid) { webClient.Headers.Add(HttpRequestHeader.Cookie, "_plaza_session_nktz7u=" + JsonConfig._config._Cookie); }
             _html = webClient.DownloadString(Stdurl + _boothId);
             
 #pragma warning restore SYSLIB0014
@@ -119,12 +121,6 @@ namespace BoothDownloader
             {
                 Console.WriteLine("No images found. trying with regex png...");
                 imageCollection = imageRegexPng.Matches(_html);
-            }
-            
-            // crate gif collection
-            if (gifCollection.Count == 0)
-            {
-                Console.WriteLine("No gifs found.");
             }
 
             // create download collection
@@ -219,7 +215,7 @@ namespace BoothDownloader
                 var downloadtasks = downloadables.Select(url => Task.Factory.StartNew(state =>
                 {
                     using var client = new Webclientsubclass();
-                    client.Headers.Add(HttpRequestHeader.Cookie, "_plaza_session_nktz7u" + "=" + JsonConfig._config._Cookie);
+                    client.Headers.Add(HttpRequestHeader.Cookie, "_plaza_session_nktz7u=" + JsonConfig._config._Cookie);
                     var urls = (string) state!;
                     Console.WriteLine("starting to download: {0}", urls);
                     var result = client.DownloadData(urls);
@@ -259,6 +255,7 @@ namespace BoothDownloader
             
             if (args.Length != 0 && JsonConfig._config._autozip)
             {
+                // used for standard output redirection for path to zip file with another process
                 Console.WriteLine("ENVFilePATH: " + iddir + ".zip");
             }
             

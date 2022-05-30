@@ -1,13 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
+// ReSharper disable IdentifierTypo
+// ReSharper disable InconsistentNaming
 
 namespace BoothDownloader
 {
-    public class JsonConfig
+    public static class JsonConfig
     {
-        public static string _configpath = "BDConfig.json";
+        private const string Configpath = "BDConfig.json";
         public static Config _config = new Config();
 
         public class Config
@@ -27,7 +26,7 @@ namespace BoothDownloader
             {
                 try
                 {
-                    if (!File.Exists(_configpath))
+                    if (!File.Exists(Configpath))
                     {
                         saveconf();
                     }
@@ -43,9 +42,9 @@ namespace BoothDownloader
             }
 
             public static void forcesave() => saveconf();
-            private static void loadconf() => _config = JsonConvert.DeserializeObject<Config>(File.ReadAllText(_configpath));
+            private static void loadconf() => _config = JsonConvert.DeserializeObject<Config>(File.ReadAllText(Configpath))!;
 
-            private static void saveconf() => File.WriteAllText(_configpath, JsonConvert.SerializeObject(_config, Formatting.Indented));
+            private static void saveconf() => File.WriteAllText(Configpath, JsonConvert.SerializeObject(_config, Formatting.Indented));
         }
     }
 }
