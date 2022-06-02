@@ -13,6 +13,10 @@ namespace BoothDownloader
         private const string Stdurl2 = "https://accounts.booth.pm/settings";
         private const string Resized = "base_resized";
         private static string? _userinput = "";
+
+        private static Task[] giftasks;
+        private static Task[] imagetasks;
+        private static Task[] downloadtasks;
         static void Main(string?[] args)
         {
             #region JsonConfig
@@ -173,30 +177,32 @@ namespace BoothDownloader
             // create gif task factory
             if (gifs.Count > 0)
             {
-                var giftasks = gifs.Select(url => Task.Factory.StartNew(state =>
+                giftasks = gifs.Select(url => Task.Factory.StartNew(state =>
                 {
                     using var client = new Webclientsubclass();
                     client.Headers.Add(HttpRequestHeader.Cookie, "adult=t");
                     var urls = (string) state!;
+                    Console.WriteLine("starting on thread: {0}", Thread.CurrentThread.ManagedThreadId);
                     Console.WriteLine("starting to download: {0}", urls);
                     var result = client.DownloadData(urls);
                     var name = guidRegex.Match(urls).ToString().Split('/').Last();
                     Console.WriteLine("name: " + name);
                     File.WriteAllBytesAsync(iddir + "/" + name, result);
                     Console.WriteLine("finished downloading: {0}", urls);
+                    Console.WriteLine("finished downloading on thread: {0}", Thread.CurrentThread.ManagedThreadId);
                 }, url)).ToArray();
-
-                Task.WaitAll(giftasks);
+                
             }else Console.WriteLine("No gifs found skipping downloader.");
 
             // create image task factory
             if (images.Count > 0)
             {
-                var imagetasks = images.Select(url => Task.Factory.StartNew(state =>
+                imagetasks = images.Select(url => Task.Factory.StartNew(state =>
                 {
                     using var client = new Webclientsubclass();
                     client.Headers.Add(HttpRequestHeader.Cookie, "adult=t");
                     var urls = (string) state!;
+                    Console.WriteLine("starting on thread: {0}", Thread.CurrentThread.ManagedThreadId);
                     Console.WriteLine("starting to download: {0}", urls);
                     var result = client.DownloadData(urls);
                     var name = guidRegex.Match(urls).ToString().Split('/').Last();
@@ -204,32 +210,54 @@ namespace BoothDownloader
                     if (!name.Contains(Resized)) return;
                     File.WriteAllBytesAsync(iddir + "/" + name, result);
                     Console.WriteLine("finished downloading: {0}", urls);
+                    Console.WriteLine("finished downloading on thread: {0}", Thread.CurrentThread.ManagedThreadId);
                 }, url)).ToArray();
-
-                Task.WaitAll(imagetasks);
+                
             }else Console.WriteLine("No images found skipping downloader.");
 
 
             if (downloadables.Count > 0)
             {
-                var downloadtasks = downloadables.Select(url => Task.Factory.StartNew(state =>
+                downloadtasks = downloadables.Select(url => Task.Factory.StartNew(state =>
                 {
                     using var client = new Webclientsubclass();
                     client.Headers.Add(HttpRequestHeader.Cookie, "_plaza_session_nktz7u=" + JsonConfig._config._Cookie);
                     var urls = (string) state!;
+                    Console.WriteLine("starting on thread: {0}", Thread.CurrentThread.ManagedThreadId);
                     Console.WriteLine("starting to download: {0}", urls);
                     var result = client.DownloadData(urls);
                     var filename = dlNameRegex.Match(client.ResponseUri!.ToString()).Groups[1].Value;
                     File.WriteAllBytesAsync(filedir + "/" + filename, result);
                     Console.WriteLine("finished downloading: {0}", urls);
+                    Console.WriteLine("finished downloading on thread: {0}", Thread.CurrentThread.ManagedThreadId);
                 }, url)).ToArray();
-
-                Task.WaitAll(downloadtasks);
+                
             }else Console.WriteLine("No downloadables found skipping downloader.");
             
 
             #endregion
 
+            
+            #region Wait for all tasks to finish
+
+            
+            if (gifs.Count > 0)
+            {
+                Task.WaitAll(giftasks);
+            }
+
+            if (images.Count > 0)
+            {
+                Task.WaitAll(imagetasks);
+            }
+
+            if (downloadables.Count > 0)
+            {
+                Task.WaitAll(downloadtasks);
+            }
+
+            #endregion
+            
             #region Compression
 
             Thread.Sleep(1500);
