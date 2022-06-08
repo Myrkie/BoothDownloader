@@ -17,6 +17,9 @@ Usable format:
 > 3807513
 
 
+## your token and you ##
+follow this video to get your token
+![Notification](GitImages/Yourtoken.gif)
 
 
 # example config #
