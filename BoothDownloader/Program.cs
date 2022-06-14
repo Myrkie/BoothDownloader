@@ -14,9 +14,9 @@ namespace BoothDownloader
         private const string Resized = "base_resized";
         private static string? _userinput = "";
 
-        private static Task[] giftasks;
-        private static Task[] imagetasks;
-        private static Task[] downloadtasks;
+        private static Task[]? _giftasks;
+        private static Task[]? _imagetasks;
+        private static Task[]? _downloadtasks;
         static void Main(string?[] args)
         {
             #region JsonConfig
@@ -103,9 +103,7 @@ namespace BoothDownloader
 #pragma warning disable SYSLIB0014
             var webClient = new WebClient();
             webClient.Headers.Add(HttpRequestHeader.Cookie, "adult=t");
-            if (_cookievalid) { webClient.Headers.Add(HttpRequestHeader.Cookie, "_plaza_session_nktz7u=" + JsonConfig._config._Cookie); }
             _html = webClient.DownloadString(Stdurl + _boothId);
-            
 #pragma warning restore SYSLIB0014
 
             #endregion
@@ -177,7 +175,7 @@ namespace BoothDownloader
             // create gif task factory
             if (gifs.Count > 0)
             {
-                giftasks = gifs.Select(url => Task.Factory.StartNew(state =>
+                _giftasks = gifs.Select(url => Task.Factory.StartNew(state =>
                 {
                     using var client = new Webclientsubclass();
                     client.Headers.Add(HttpRequestHeader.Cookie, "adult=t");
@@ -197,7 +195,7 @@ namespace BoothDownloader
             // create image task factory
             if (images.Count > 0)
             {
-                imagetasks = images.Select(url => Task.Factory.StartNew(state =>
+                _imagetasks = images.Select(url => Task.Factory.StartNew(state =>
                 {
                     using var client = new Webclientsubclass();
                     client.Headers.Add(HttpRequestHeader.Cookie, "adult=t");
@@ -218,7 +216,7 @@ namespace BoothDownloader
 
             if (downloadables.Count > 0)
             {
-                downloadtasks = downloadables.Select(url => Task.Factory.StartNew(state =>
+                _downloadtasks = downloadables.Select(url => Task.Factory.StartNew(state =>
                 {
                     using var client = new Webclientsubclass();
                     client.Headers.Add(HttpRequestHeader.Cookie, "_plaza_session_nktz7u=" + JsonConfig._config._Cookie);
@@ -241,20 +239,12 @@ namespace BoothDownloader
             #region Wait for all tasks to finish
 
             
-            if (gifs.Count > 0)
-            {
-                Task.WaitAll(giftasks);
-            }
+            if (_giftasks != null) Task.WaitAll(_giftasks);
+            
+            if (_imagetasks != null) Task.WaitAll(_imagetasks);
 
-            if (images.Count > 0)
-            {
-                Task.WaitAll(imagetasks);
-            }
+            if (_downloadtasks != null) Task.WaitAll(_downloadtasks);
 
-            if (downloadables.Count > 0)
-            {
-                Task.WaitAll(downloadtasks);
-            }
 
             #endregion
             
