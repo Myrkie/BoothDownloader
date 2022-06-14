@@ -234,18 +234,15 @@ namespace BoothDownloader
             
 
             #endregion
-
             
             #region Wait for all tasks to finish
-
             
             if (_giftasks != null) Task.WaitAll(_giftasks);
             
             if (_imagetasks != null) Task.WaitAll(_imagetasks);
 
             if (_downloadtasks != null) Task.WaitAll(_downloadtasks);
-
-
+            
             #endregion
             
             #region Compression
