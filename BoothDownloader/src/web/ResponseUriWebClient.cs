@@ -2,6 +2,7 @@
 
 namespace BoothDownloader.web;
 
+#pragma warning disable SYSLIB0014
 public class ResponseUriWebClient : WebClient
 {
     public Uri? ResponseUri { get; private set; }

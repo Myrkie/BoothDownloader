@@ -57,10 +57,6 @@ internal static class BoothDownloader
 
         rootCommand.SetHandler((configFile, boothId, outputDirectory) =>
         {
-            Console.WriteLine(configFile.ToString());
-            Console.WriteLine(boothId?.ToString());
-            Console.WriteLine(outputDirectory.ToString());
-            
             var config = new JsonConfig(configFile);
 
             #region First Boot
