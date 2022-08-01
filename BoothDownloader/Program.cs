@@ -17,6 +17,7 @@ namespace BoothDownloader
         private static Task[]? _giftasks;
         private static Task[]? _imagetasks;
         private static Task[]? _downloadtasks;
+        private static Task[]? _ordertasks;
         static void Main(string?[] args)
         {
             #region JsonConfig
@@ -43,6 +44,8 @@ namespace BoothDownloader
             var guidRegex = new Regex(@"[a-f0-9-]{0,}\/i\/[0-9]{0,}\/[a-zA-Z0-9\-_]{0,}\.(png|jpg|gif)");
 
             var getDlRegex = new Regex(@"https\:\/\/booth\.pm\/downloadables\/[0-9]{0,}");
+
+            var ordersRegex = new Regex(@"https\:\/\/accounts\.booth\.pm\/orders\/[0-9]{0,}");
 
             var dlNameRegex = new Regex(@".*\/(.*)\?");
 
@@ -102,7 +105,14 @@ namespace BoothDownloader
             // force ID for all download strings for subdomain support
 #pragma warning disable SYSLIB0014
             var webClient = new WebClient();
-            webClient.Headers.Add(HttpRequestHeader.Cookie, "adult=t");
+            if (_cookievalid)
+            {
+                webClient.Headers.Add(HttpRequestHeader.Cookie, "adult=t; _plaza_session_nktz7u=" + JsonConfig._config._Cookie);
+            }
+            else
+            {
+                webClient.Headers.Add(HttpRequestHeader.Cookie, "adult=t");
+            }
             _html = webClient.DownloadString(Stdurl + _boothId);
 #pragma warning restore SYSLIB0014
 
@@ -113,10 +123,12 @@ namespace BoothDownloader
             var imageCollection = imageRegex.Matches(_html);
             var downloadCollection = getDlRegex.Matches(_html);
             var gifCollection = imageRegexGif.Matches(_html);
+            var ordersCollection = ordersRegex.Matches(_html);
 
             var downloadables = new HashSet<string>();
             var images = new HashSet<string>();
             var gifs = new HashSet<string>();
+            var orders = new HashSet<string>();
 
             // create image collection
             if (imageCollection.Count == 0)
@@ -126,7 +138,7 @@ namespace BoothDownloader
             }
 
             // create download collection
-            if (downloadCollection.Count == 0)
+            if (downloadCollection.Count == 0 && orders.Count == 0)
             {
                 Console.WriteLine("No downloadables found. skipping login...");
             }
@@ -146,6 +158,33 @@ namespace BoothDownloader
                 {
                     downloadables.Add(downloadurl.Value);
                 }
+
+                foreach (Match orderurl in ordersCollection)
+                {
+                    orders.Add(orderurl.Value);
+                }
+                
+                if (orders.Count > 0)
+                {
+                    _ordertasks = orders.Select(url => Task.Factory.StartNew(state =>
+                    {
+                        using var client = new Webclientsubclass();
+                        client.Headers.Add(HttpRequestHeader.Cookie, "adult=t; _plaza_session_nktz7u=" + JsonConfig._config._Cookie);
+                        var urls = (string) state!;
+                        Console.WriteLine("starting on thread: {0}", Thread.CurrentThread.ManagedThreadId);
+                        Console.WriteLine("starting to grab order downloads: {0}", urls);
+                        var orderHtml = client.DownloadString(urls);
+                        var orderDownloadCollection = getDlRegex.Matches(orderHtml);
+                        foreach (Match downloadUrl in orderDownloadCollection)
+                        {
+                            downloadables.Add(downloadUrl.Value);
+                        }
+                        Console.WriteLine("finished grabbing: {0}", urls);
+                        Console.WriteLine("finished grabbing on thread: {0}", Thread.CurrentThread.ManagedThreadId);
+                    }, url)).ToArray();
+                }
+                
+                if (_ordertasks != null) Task.WaitAll(_ordertasks); 
             }else Console.WriteLine("Cookie is not valid. Skipping downloads...");
             
             // create gif hashset
