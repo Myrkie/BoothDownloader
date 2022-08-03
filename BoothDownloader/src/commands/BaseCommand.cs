@@ -126,7 +126,7 @@ public class BaseCommand : RootCommand
                 var boothOrderPages = ordersCollection.Select(orderId => new BoothOrderPage(client, orderId));
                 foreach (var boothOrderPage in boothOrderPages)
                 {
-                    foreach (var downloadUrl in boothOrderPage.Downloads)
+                    foreach (var downloadUrl in boothOrderPage.ItemDownloads[boothId])
                     {
                         downloadBag.Add(downloadUrl);
                     }
