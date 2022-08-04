@@ -1,6 +1,8 @@
 ﻿using System.Net;
 using System.Text.RegularExpressions;
 using BoothDownloader.config;
+using BoothDownloader.log;
+using Microsoft.Extensions.Logging;
 
 namespace BoothDownloader.web;
 
@@ -46,14 +48,16 @@ public class BoothClient
     {
         return Task.Factory.StartNew(() =>
         {
-            using var webClient = MakeWebClient();
-            Console.WriteLine("starting on thread: {0}", Environment.CurrentManagedThreadId);
-            Console.WriteLine("starting to download: {0}", url);
-            var result = webClient.DownloadData(url);
-            var name = GuidRegex.Match(url).ToString().Split('/').Last();
-            File.WriteAllBytesAsync(targetDirectory + "/" + name, result);
-            Console.WriteLine("finished downloading: {0}", url);
-            Console.WriteLine("finished downloading on thread: {0}", Environment.CurrentManagedThreadId);
+            var logger = Log.Factory.CreateLogger("DownloadImageTask");
+            using (logger.BeginScope(url))
+            {
+                using var webClient = MakeWebClient();
+                logger.LogInformation("Starting Image Download [{0}]", Environment.CurrentManagedThreadId);
+                var result = webClient.DownloadData(url);
+                var name = GuidRegex.Match(url).ToString().Split('/').Last();
+                File.WriteAllBytesAsync(targetDirectory + "/" + name, result);
+                logger.LogInformation("Finished Image Download [{0}]", Environment.CurrentManagedThreadId);
+            }
         });
     }
 
@@ -61,14 +65,16 @@ public class BoothClient
     {
         return Task.Factory.StartNew(() =>
         {
-            using var webClient = MakeWebClient();
-            Console.WriteLine("starting on thread: {0}", Environment.CurrentManagedThreadId);
-            Console.WriteLine("starting to download: {0}", url);
-            var result = webClient.DownloadData(url);
-            var filename = DownloadNameRegex.Match(webClient.ResponseUri!.ToString()).Groups[1].Value;
-            File.WriteAllBytesAsync(targetDirectory + "/" + filename, result);
-            Console.WriteLine("finished downloading: {0}", url);
-            Console.WriteLine("finished downloading on thread: {0}", Environment.CurrentManagedThreadId);
+            var logger = Log.Factory.CreateLogger("DownloadTask");
+            using (logger.BeginScope(url))
+            {
+                using var webClient = MakeWebClient();
+                logger.LogInformation("Starting Download [{0}]", Environment.CurrentManagedThreadId);
+                var result = webClient.DownloadData(url);
+                var filename = DownloadNameRegex.Match(webClient.ResponseUri!.ToString()).Groups[1].Value;
+                File.WriteAllBytesAsync(targetDirectory + "/" + filename, result);
+                logger.LogInformation("Finished Download [{0}]", Environment.CurrentManagedThreadId);
+            }
         });
     }
 }

@@ -4,7 +4,9 @@ using System.IO.Compression;
 using System.Text.RegularExpressions;
 using BoothDownloader.booth;
 using BoothDownloader.config;
+using BoothDownloader.log;
 using BoothDownloader.web;
+using Microsoft.Extensions.Logging;
 
 namespace BoothDownloader.commands;
 
@@ -31,12 +33,18 @@ public class BaseCommand : RootCommand
 
     public BaseCommand() : base(description: "Booth Downloader")
     {
+        _configOption.AddAlias("-c");
+        _boothOption.AddAlias("-b");
+        _outputDirectoryOption.AddAlias("-o");
+
         AddGlobalOption(_configOption);
         AddOption(_boothOption);
         AddOption(_outputDirectoryOption);
 
         this.SetHandler((configFile, boothId, outputDirectory) =>
         {
+            var logger = Log.Factory.CreateLogger("BaseCommand");
+
             var config = new JsonConfig(configFile);
 
             #region First Boot
@@ -48,7 +56,7 @@ public class BaseCommand : RootCommand
                 config.Config.Cookie = cookie!;
                 config.Config.FirstBoot = false;
                 config.Save();
-                Console.WriteLine("Cookie set!");
+                logger.Log(LogLevel.Information, "Cookie Set");
             }
 
             #endregion
@@ -72,7 +80,7 @@ public class BaseCommand : RootCommand
             var outputDir = Directory.CreateDirectory(outputDirectory);
             if (Directory.Exists(outputDir + "/" + boothId))
             {
-                Console.WriteLine("Directory already exists. Deleting...");
+                logger.Log(LogLevel.Information, "Directory already exists. Deleting...");
                 Directory.Delete(outputDir + "/" + boothId, true);
             }
 
@@ -88,13 +96,12 @@ public class BaseCommand : RootCommand
 
             if (hasValidCookie)
             {
-                Console.WriteLine("Cookie is valid! - file downloads will function.");
+                logger.Log(LogLevel.Information, "Cookie is valid! - file downloads will function.");
             }
             else
             {
-                Console.WriteLine(
-                    "Cookie is not valid file downloads will not function!\nImage downloads will still function\nUpdate your cookie in the config file."
-                );
+                logger.Log(LogLevel.Warning,
+                    "Cookie is not valid file downloads will not function! Image downloads will still function. Update your cookie in the config file.");
                 config.Config.Cookie = "";
                 config.Save();
             }
@@ -105,8 +112,19 @@ public class BaseCommand : RootCommand
 
             var boothItemPage = new BoothItemPage(client, boothId);
 
-            var imageCollection = boothItemPage.ResizedImages.ToArray();
-            var gifCollection = boothItemPage.Gifs.ToArray();
+            #endregion
+
+            #region Start Image Downloads
+
+            var imageTasks = boothItemPage.ResizedImages.Distinct()
+                .Select(url => client.StartDownloadImageTask(url, entryDir)).ToArray();
+            var gifTasks = boothItemPage.Gifs.Distinct().Select(url => client.StartDownloadImageTask(url, entryDir))
+                .ToArray();
+
+            #endregion
+
+            #region Parse Downloads
+
             var downloadCollection = hasValidCookie
                 ? boothItemPage.Downloads.ToArray()
                 : Array.Empty<string>();
@@ -117,13 +135,10 @@ public class BaseCommand : RootCommand
             // Thread safe container for collecting download urls
             var downloadBag = new ConcurrentBag<string>(downloadCollection);
 
-            #endregion
-
-            #region Parse Booth Order Pages
-
             if (ordersCollection.Length > 0)
             {
-                var boothOrderPages = ordersCollection.Select(orderId => new BoothOrderPage(client, orderId));
+                var boothOrderPages =
+                    ordersCollection.Distinct().Select(orderId => new BoothOrderPage(client, orderId));
                 foreach (var boothOrderPage in boothOrderPages)
                 {
                     foreach (var downloadUrl in boothOrderPage.ItemDownloads[boothId])
@@ -137,27 +152,29 @@ public class BaseCommand : RootCommand
 
             #region Download Processing
 
-            var imageTasks = imageCollection.Select(url => client.StartDownloadImageTask(url, entryDir)).ToArray();
-            var gifTasks = gifCollection.Select(url => client.StartDownloadImageTask(url, entryDir)).ToArray();
-            var downloadTasks = downloadBag.Select(url => client.StartDownloadBinaryTask(url, binaryDir)).ToArray();
+            var downloadTasks = downloadBag.Distinct().Select(url => client.StartDownloadBinaryTask(url, binaryDir))
+                .ToArray();
 
             if (imageTasks.Length > 0)
             {
                 Task.WaitAll(imageTasks);
+                logger.Log(LogLevel.Information, "All image downloads completed.");
             }
-            else Console.WriteLine("No images found skipping downloader.");
+            else logger.Log(LogLevel.Information, "No images found. Skipping downloader.");
 
             if (gifTasks.Length > 0)
             {
                 Task.WaitAll(gifTasks);
+                logger.Log(LogLevel.Information, "All gif downloads completed.");
             }
-            else Console.WriteLine("No gifs found skipping downloader.");
+            else logger.Log(LogLevel.Information, "No gifs found. Skipping downloader.");
 
             if (downloadTasks.Length > 0)
             {
                 Task.WaitAll(downloadTasks);
+                logger.Log(LogLevel.Information, "All file downloads completed.");
             }
-            else Console.WriteLine("No downloads found skipping downloader.");
+            else logger.Log(LogLevel.Information, "No file downloads found. Skipping downloader.");
 
             #endregion
 
@@ -169,20 +186,20 @@ public class BaseCommand : RootCommand
             {
                 if (File.Exists(entryDir + ".zip"))
                 {
-                    Console.WriteLine("File already exists. Deleting...");
+                    logger.Log(LogLevel.Information, "File already exists. Deleting...");
                     File.Delete(entryDir + ".zip");
                 }
 
                 ZipFile.CreateFromDirectory(entryDir.ToString(), entryDir + ".zip");
                 Directory.Delete(entryDir.ToString(), true);
-                Console.WriteLine("Zipped!");
+                logger.Log(LogLevel.Information, "Zipped!");
             }
 
             #endregion
 
             #region Exit Successfully
 
-            Console.WriteLine("Done!");
+            logger.Log(LogLevel.Information, "Done!");
 
             if (idFromArgument && config.Config.AutoZip)
             {

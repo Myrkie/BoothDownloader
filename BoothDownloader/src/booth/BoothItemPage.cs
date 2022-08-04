@@ -1,9 +1,10 @@
 ﻿using System.Text.RegularExpressions;
+using BoothDownloader.Utils;
 using BoothDownloader.web;
 
 namespace BoothDownloader.booth;
 
-public class BoothItemPage
+public class BoothItemPage: AbstractBoothPage
 {
     private const string UrlItemPage = "https://booth.pm/en/items";
     
@@ -23,29 +24,9 @@ public class BoothItemPage
     private static readonly Regex OrdersRegex = new(@"https\:\/\/accounts\.booth\.pm\/orders\/[0-9]{0,}");
 
     private static readonly Regex DownloadRegex = new(@"https\:\/\/booth\.pm\/downloadables\/[0-9]{0,}");
-    private BoothClient Client { get; }
-    private string Id { get; }
 
-    private string? _html;
-
-    private string Html
+    public BoothItemPage(BoothClient client, string id): base(client, $"{UrlItemPage}/{id}")
     {
-        get
-        {
-            if (_html == null)
-            {
-                using var client = Client.MakeWebClient();
-                _html = client.DownloadString($"{UrlItemPage}/{Id}");
-            }
-
-            return _html;
-        }
-    }
-
-    public BoothItemPage(BoothClient client, string id)
-    {
-        Client = client;
-        Id = id;
     }
 
     public IEnumerable<string> Images => ImageRegex.Matches(Html).Select(match => match.Value);
@@ -57,4 +38,7 @@ public class BoothItemPage
     public IEnumerable<string> Orders => OrdersRegex.Matches(Html).Select(match => match.Value);
     public IEnumerable<string> OrderIds => Orders.Select(orderUrl => IdRegex.Match(orderUrl).Value);
     public IEnumerable<string> Downloads => DownloadRegex.Matches(Html).Select(match => match.Value);
+
+    public IEnumerable<string> Tags => Document.DocumentNode
+        .SelectNodes($"//a{XPath.ClassMatcher("search-guide-tablet-label-inner")}").Select(node => node.InnerText);
 }
