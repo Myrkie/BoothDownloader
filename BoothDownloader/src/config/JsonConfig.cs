@@ -1,14 +1,18 @@
-﻿using Newtonsoft.Json;
+﻿using BoothDownloader.log;
+using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 
 namespace BoothDownloader.config;
 
 public class JsonConfig
 {
+    private ILogger Logger;
     private string Path { get; }
-    public Config Config = new Config();
-    
+    public Config Config = new();
+
     public JsonConfig(string path)
     {
+        Logger = Log.Factory.CreateLogger("JsonConfig");
         Path = path;
 
         if (!File.Exists(Path))
@@ -29,7 +33,7 @@ public class JsonConfig
         }
         catch (Exception e)
         {
-            Console.WriteLine(e);
+            Logger.LogError(e, "Config failed to save");
             throw;
         }
     }
@@ -42,7 +46,7 @@ public class JsonConfig
         }
         catch (Exception e)
         {
-            Console.WriteLine(e);
+            Logger.LogError(e, "Config failed to load");
             throw;
         }
     }

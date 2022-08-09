@@ -40,5 +40,5 @@ public class BoothItemPage: AbstractBoothPage
     public IEnumerable<string> Downloads => DownloadRegex.Matches(Html).Select(match => match.Value);
 
     public IEnumerable<string> Tags => Document.DocumentNode
-        .SelectNodes($"//a{XPath.ClassMatcher("search-guide-tablet-label-inner")}").Select(node => node.InnerText);
+        .SelectNodes($"//div{XPath.ClassMatcher("search-guide-tablet-label-inner")}").Select(node => node.InnerText);
 }

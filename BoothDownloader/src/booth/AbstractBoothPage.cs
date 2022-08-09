@@ -7,42 +7,40 @@ public abstract class AbstractBoothPage
 {
     private BoothClient Client { get; }
     private string Url { get; }
-
-    private string? _html;
-
-    protected string Html
-    {
-        get
-        {
-            if (_html == null)
-            {
-                using var client = Client.MakeWebClient();
-                _html = client.DownloadString(Url);
-            }
-
-            return _html;
-        }
-    }
-
-    private HtmlDocument? _document;
-
-    protected HtmlDocument Document
-    {
-        get
-        {
-            if (_document == null)
-            {
-                _document = new HtmlDocument();
-                _document.LoadHtml(Html);
-            }
-
-            return _document;
-        }
-    }
+    
+    private readonly Task<string> _html;
 
     protected AbstractBoothPage(BoothClient client, string url)
     {
         Client = client;
         Url = url;
+        _html = LoadHtml();
+    }
+
+    private async Task<string> LoadHtml()
+    {
+        var response = await Client.GetClient().GetAsync(Url);
+
+        response.EnsureSuccessStatusCode();
+        
+        return await response.Content.ReadAsStringAsync();
+    }
+
+    protected async Task<string> GetHtml()
+    {
+        return await _html;
+    }
+
+    protected async Task<HtmlDocument> GetDocument()
+    {
+        var html = await GetHtml();
+        
+        var document = new HtmlDocument
+        {
+            OptionEmptyCollection = true,
+        };
+        document.LoadHtml(html);
+        
+        return document;
     }
 }

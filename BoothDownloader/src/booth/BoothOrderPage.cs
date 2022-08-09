@@ -1,7 +1,6 @@
 ﻿using System.Text.RegularExpressions;
 using BoothDownloader.Utils;
 using BoothDownloader.web;
-using HtmlAgilityPack;
 
 namespace BoothDownloader.booth;
 
