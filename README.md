@@ -16,11 +16,13 @@ Usable format:
 >
 > 3807513
 
+follow these video's to get your access token, this is required for downloading free files.
 
-## your token and you ##
-follow this video to get your token
-![Notification](GitImages/Yourtoken.gif)
+# Chrome
+![Chrome](GitImages/chrome.gif)
 
+# Firefox
+![Firefox](GitImages/firefox.gif)
 
 # example config #
 ```json
