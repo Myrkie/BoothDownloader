@@ -184,9 +184,8 @@ internal static class BoothDownloader
                 using var webClient = client.MakeWebClient();
                 Console.WriteLine("starting on thread: {0}", Environment.CurrentManagedThreadId);
                 Console.WriteLine("starting to download: {0}", url);
-                var result = webClient.DownloadData(url);
                 var name = GuidRegex.Match(url).ToString().Split('/').Last();
-                File.WriteAllBytesAsync(entryDir + "/" + name, result);
+                webClient.DownloadFile(url, entryDir + "/" + name);
                 Console.WriteLine("finished downloading: {0}", url);
                 Console.WriteLine("finished downloading on thread: {0}", Environment.CurrentManagedThreadId);
             })).ToArray();
@@ -196,10 +195,9 @@ internal static class BoothDownloader
                 using var webClient = client.MakeWebClient();
                 Console.WriteLine("starting on thread: {0}", Environment.CurrentManagedThreadId);
                 Console.WriteLine("starting to download: {0}", url);
-                var result = webClient.DownloadData(url);
                 var name = GuidRegex.Match(url).ToString().Split('/').Last();
                 Console.WriteLine("name: " + name);
-                File.WriteAllBytesAsync(entryDir + "/" + name, result);
+                webClient.DownloadFile(url, entryDir + "/" + name);
                 Console.WriteLine("finished downloading: {0}", url);
                 Console.WriteLine("finished downloading on thread: {0}", Environment.CurrentManagedThreadId);
             })).ToArray();
@@ -209,9 +207,11 @@ internal static class BoothDownloader
                 using var webClient = client.MakeWebClient();
                 Console.WriteLine("starting on thread: {0}", Environment.CurrentManagedThreadId);
                 Console.WriteLine("starting to download: {0}", url);
-                var result = webClient.DownloadData(url);
-                var filename = DownloadNameRegex.Match(webClient.ResponseUri!.ToString()).Groups[1].Value;
-                File.WriteAllBytesAsync(binaryDir + "/" + filename, result);
+                using var httpClient = client.MakeHttpClient();
+                var resp = httpClient.GetAsync(url).GetAwaiter().GetResult();
+                var redirectUrl = resp.Headers.Location;
+                var filename = DownloadNameRegex.Match(redirectUrl.ToString()).Groups[1].Value;
+                webClient.DownloadFile(redirectUrl, binaryDir + "/" + filename);
                 Console.WriteLine("finished downloading: {0}", url);
                 Console.WriteLine("finished downloading on thread: {0}", Environment.CurrentManagedThreadId);
             })).ToArray();
@@ -242,6 +242,7 @@ internal static class BoothDownloader
 
             if (config.Config.AutoZip)
             {
+                Console.WriteLine("Zipping!");
                 if (File.Exists(entryDir + ".zip"))
                 {
                     Console.WriteLine("File already exists. Deleting...");
