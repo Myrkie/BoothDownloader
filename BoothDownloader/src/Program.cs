@@ -210,8 +210,11 @@ internal static class BoothDownloader
                 using var httpClient = client.MakeHttpClient();
                 var resp = httpClient.GetAsync(url).GetAwaiter().GetResult();
                 var redirectUrl = resp.Headers.Location;
-                var filename = DownloadNameRegex.Match(redirectUrl.ToString()).Groups[1].Value;
-                webClient.DownloadFile(redirectUrl, binaryDir + "/" + filename);
+                if (redirectUrl != null)
+                {
+                    var filename = DownloadNameRegex.Match(redirectUrl.ToString()).Groups[1].Value;
+                    webClient.DownloadFile(redirectUrl, binaryDir + "/" + filename);
+                }
                 Console.WriteLine("finished downloading: {0}", url);
                 Console.WriteLine("finished downloading on thread: {0}", Environment.CurrentManagedThreadId);
             })).ToArray();

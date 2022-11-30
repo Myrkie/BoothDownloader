@@ -9,7 +9,7 @@ public class BoothClient
     private const string UrlItemPage = "https://booth.pm/en/items";
     private Config Config { get; }
 
-    private static readonly HttpClientHandler httpHandler = new HttpClientHandler { AllowAutoRedirect = false };
+    private static readonly HttpClientHandler HttpHandler = new HttpClientHandler { AllowAutoRedirect = false };
 
     public BoothClient(Config config)
     {
@@ -32,7 +32,7 @@ public class BoothClient
 
     public HttpClient MakeHttpClient()
     {
-        var httpClient = new HttpClient(httpHandler);
+        var httpClient = new HttpClient(HttpHandler);
 
         httpClient.DefaultRequestHeaders.Add("Cookie", $"adult=t; _plaza_session_nktz7u={Config.Cookie}");
 
