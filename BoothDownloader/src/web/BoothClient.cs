@@ -7,13 +7,17 @@ public class BoothClient
 {
     private const string UrlAccountSettings = "https://accounts.booth.pm/settings";
     private const string UrlItemPage = "https://booth.pm/en/items";
-    public Config Config { get; }
+    private Config Config { get; }
 
     public BoothClient(Config config)
     {
         Config = config;
         
         
+    }
+    public class DownloadFailedException : Exception
+    {
+        public override string Message => "The order collection downloader has failed";
     }
 
     public ResponseUriWebClient MakeWebClient()

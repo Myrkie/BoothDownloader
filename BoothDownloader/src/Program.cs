@@ -1,6 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using System.CommandLine;
 using System.IO.Compression;
+using System.Text;
 using System.Text.RegularExpressions;
 using BoothDownloader.config;
 using BoothDownloader.web;
@@ -12,21 +13,20 @@ internal static class BoothDownloader
     private const string Resized = "base_resized";
 
     private static readonly Regex ImageRegex =
-        new(@"https\:\/\/booth\.pximg\.net\/[a-f0-9-]{0,}\/i\/[0-9]{0,}\/[a-zA-Z0-9\-_]{0,}\.(jpg|png)");
+        new(@"https\:\/\/booth\.pximg\.net\/[a-f0-9-]{0,}\/i\/[0-9]{0,}\/[a-zA-Z0-9\-_]{0,}\.(jpg|png)", RegexOptions.Compiled);
 
     private static readonly Regex ImageRegexGif =
-        new(@"https\:\/\/booth\.pximg\.net\/[a-f0-9-]{0,}\/i\/[0-9]{0,}\/[a-zA-Z0-9\-_]{0,}\.(gif)");
+        new(@"https\:\/\/booth\.pximg\.net\/[a-f0-9-]{0,}\/i\/[0-9]{0,}\/[a-zA-Z0-9\-_]{0,}\.(gif)", RegexOptions.Compiled);
 
-    private static readonly Regex IdRegex = new(@"[^/]+(?=/$|$)");
+    private static readonly Regex IdRegex = new(@"[^/]+(?=/$|$)", RegexOptions.Compiled);
 
-    private static readonly Regex
-        GuidRegex = new(@"[a-f0-9-]{0,}\/i\/[0-9]{0,}\/[a-zA-Z0-9\-_]{0,}\.(png|jpg|gif)");
+    private static readonly Regex GuidRegex = new(@"[a-f0-9-]{0,}\/i\/[0-9]{0,}\/[a-zA-Z0-9\-_]{0,}\.(png|jpg|gif)", RegexOptions.Compiled);
 
-    private static readonly Regex DownloadRegex = new(@"https\:\/\/booth\.pm\/downloadables\/[0-9]{0,}");
+    private static readonly Regex DownloadRegex = new(@"https\:\/\/booth\.pm\/downloadables\/[0-9]{0,}", RegexOptions.Compiled);
 
-    private static readonly Regex DownloadNameRegex = new(@".*\/(.*)\?");
+    private static readonly Regex DownloadNameRegex = new(@".*\/(.*)\?", RegexOptions.Compiled);
 
-    private static readonly Regex OrdersRegex = new(@"https\:\/\/accounts\.booth\.pm\/orders\/[0-9]{0,}");
+    private static readonly Regex OrdersRegex = new(@"https\:\/\/accounts\.booth\.pm\/orders\/[0-9]{0,}", RegexOptions.Compiled);
 
     private static async Task<int> Main(string[] args)
     {
@@ -144,22 +144,35 @@ internal static class BoothDownloader
 
             #region Parse Booth Order Pages
 
-            if (ordersCollection.Length > 0)
+            try
             {
-                Task.WaitAll(ordersCollection.Select(url => Task.Factory.StartNew(() =>
+                if (ordersCollection.Length > 0)
                 {
-                    using var webClient = client.MakeWebClient();
-                    Console.WriteLine("starting on thread: {0}", Environment.CurrentManagedThreadId);
-                    Console.WriteLine("starting to grab order downloads: {0}", url);
-                    var orderHtml = webClient.DownloadString(url);
-                    foreach (var downloadUrl in DownloadRegex.Matches(orderHtml).Select(match => match.Value))
+                    Task.WaitAll(ordersCollection.Select(url => Task.Factory.StartNew(() =>
                     {
-                        downloadBag.Add(downloadUrl);
-                    }
+                        using var webClient = client.MakeWebClient();
+                        Console.WriteLine("starting on thread: {0}", Environment.CurrentManagedThreadId);
+                        Console.WriteLine("starting to grab order downloads: {0}", url);
+                        var orderHtml = webClient.DownloadString(url);
+                        foreach (var downloadUrl in DownloadRegex.Matches(orderHtml).Select(match => match.Value))
+                        {
+                            downloadBag.Add(downloadUrl);
+                        }
 
-                    Console.WriteLine("finished grabbing: {0}", url);
-                    Console.WriteLine("finished grabbing on thread: {0}", Environment.CurrentManagedThreadId);
-                })).ToArray());
+                        Console.WriteLine("finished grabbing: {0}", url);
+                        Console.WriteLine("finished grabbing on thread: {0}", Environment.CurrentManagedThreadId);
+                    })).ToArray());
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                StringBuilder sb = new StringBuilder();
+                sb.Append("exception occured in order downloader");
+                sb.Append("dumping orders collection " + ordersCollection);
+                sb.Append("dumping orders urls downloadBag" + downloadBag);
+                Console.WriteLine(sb);
+                throw new BoothClient.DownloadFailedException();
             }
 
             #endregion

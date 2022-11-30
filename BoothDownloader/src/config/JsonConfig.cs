@@ -34,7 +34,7 @@ public class JsonConfig
         }
     }
 
-    public void Load()
+    private void Load()
     {
         try
         {
