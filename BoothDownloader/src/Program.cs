@@ -11,7 +11,6 @@ namespace BoothDownloader;
 internal static class BoothDownloader
 {
     internal static JsonConfig? _configextern;
-    private static bool _ordersdownloading;
     
     private const string Resized = "base_resized";
 
@@ -60,6 +59,24 @@ internal static class BoothDownloader
 
         rootCommand.SetHandler((configFile, boothId, outputDirectory) =>
         {
+            var config = new JsonConfig(configFile);
+            _configextern = config;
+            
+            #region First Boot
+
+            if (config.Config.FirstBoot)
+            {
+                Console.WriteLine("Please paste in your cookie from browser.\n");
+                var cookie = Console.ReadLine();
+                config.Config.Cookie = cookie!;
+                config.Config.FirstBoot = false;
+                config.Save();
+                Console.WriteLine("Cookie set!\n");
+            }
+
+            #endregion
+            
+            
             var idFromArgument = true;
             if (boothId == null)
             {
@@ -67,21 +84,42 @@ internal static class BoothDownloader
                 Console.WriteLine("Enter the Booth ID or URL: ");
                 boothId = Console.ReadLine();
             }   
+            
+            #region Prep Booth Client
+
+            var client = new BoothClient(config.Config);
+            var hasValidCookie = client.IsCookieValid();
+
+            if (hasValidCookie)
+            {
+                Console.WriteLine("Cookie is valid! - file downloads will function.\n");
+            }
+            else
+            {
+                Console.WriteLine(
+                    "Cookie is not valid file downloads will not function!\nImage downloads will still function\nUpdate your cookie in the config file.\n"
+                );
+                config.Config.Cookie = "";
+                config.Save();
+            }
+
+            #endregion
 
             if (boothId == "https://accounts.booth.pm/orders")
             {
-                _ordersdownloading = true;
-                var config = new JsonConfig(configFile);
-                _configextern = config;
-                Console.WriteLine("Downloading all Paid Orders!");
-                var list = BoothOrders.Ordersloop();
-                
-                foreach (var items in list)
+                if (hasValidCookie)
                 {
-                    Console.WriteLine($"Downloading {items.Id}\n");
-                    mainparsing(configFile, items.Id, outputDirectory, idFromArgument);
+                    Console.WriteLine("Downloading all Paid Orders!\n");
+                    var list = BoothOrders.Ordersloop();
+
+                    foreach (var items in list)
+                    {
+                        Console.WriteLine($"Downloading {items.Id}\n");
+                        mainparsing(items.Id, outputDirectory, idFromArgument, config, client, hasValidCookie);
+                    }
                 }
-            }else mainparsing(configFile, boothId, outputDirectory, idFromArgument);
+                else Console.WriteLine("Cannot download paid orders with invalid cookie.\n"); Thread.Sleep(1500);
+            }else mainparsing(boothId, outputDirectory, idFromArgument, config, client, hasValidCookie);
             
             
         }, configOption, boothOption, outputDirectoryOption);
@@ -89,25 +127,8 @@ internal static class BoothDownloader
         return await rootCommand.InvokeAsync(args);
     }
 
-    private static void mainparsing(string configFile, string? boothId, string outputDirectory, bool idFromArgument)
+    private static void mainparsing(string? boothId, string outputDirectory, bool idFromArgument, JsonConfig config, BoothClient client, bool hasValidCookie)
     {
-        var config = new JsonConfig(configFile);
-        _configextern = config;
-
-        #region First Boot
-
-        if (config.Config.FirstBoot)
-        {
-            Console.WriteLine("Please paste in your cookie from browser.");
-            var cookie = Console.ReadLine();
-            config.Config.Cookie = cookie!;
-            config.Config.FirstBoot = false;
-            config.Save();
-            Console.WriteLine("Cookie set!");
-        }
-
-        #endregion
-
         #region Prep Booth ID
 
         boothId = IdRegex.Match(boothId!)
@@ -129,27 +150,7 @@ internal static class BoothDownloader
         var binaryDir = Directory.CreateDirectory(entryDir + "/" + "Binary");
 
         #endregion
-
-        #region Prep Booth Client
-
-        var client = new BoothClient(config.Config);
-        var hasValidCookie = client.IsCookieValid();
-
-        if (hasValidCookie)
-        {
-            Console.WriteLine("Cookie is valid! - file downloads will function.");
-        }
-        else
-        {
-            Console.WriteLine(
-                "Cookie is not valid file downloads will not function!\nImage downloads will still function\nUpdate your cookie in the config file."
-            );
-            config.Config.Cookie = "";
-            config.Save();
-        }
-
-        #endregion
-
+        
         #region Parse Booth Item Page
 
         var html = client.GetItemPage(boothId);
