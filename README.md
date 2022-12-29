@@ -8,6 +8,8 @@ https://booth.pm/
 >
 > paste URL or ID of item into program console.
 > 
+> or paste the orders page `https://accounts.booth.pm/orders` to download all orders
+> 
 
 Usable format:
 > https://booth.pm/en/items/3807513
