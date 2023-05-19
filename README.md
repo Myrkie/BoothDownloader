@@ -22,9 +22,11 @@ follow these video's to get your access token, this is required for downloading 
 
 # Chrome
 ![Chrome](GitImages/chrome.gif)
+accessible via Ctrl + Shift + I
 
 # Firefox
 ![Firefox](GitImages/firefox.gif)
+accessible via Ctrl + Shift + I
 
 # example config #
 ```json
