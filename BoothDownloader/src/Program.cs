@@ -105,7 +105,7 @@ internal static class BoothDownloader
 
             #endregion
 
-            if (boothId == "https://accounts.booth.pm/orders")
+            if (boothId == "https://accounts.booth.pm/orders" | boothId.ToLower() == "orders")
             {
                 if (hasValidCookie)
                 {
@@ -270,6 +270,7 @@ internal static class BoothDownloader
 
         var downloadTasks = downloadBag.Select(url => Task.Factory.StartNew(() =>
             {
+                var GUID = Guid.NewGuid().ToString();
                 using var webClient = client.MakeWebClient();
                 Console.WriteLine("starting on thread: {0}",
                     Environment.CurrentManagedThreadId);
@@ -286,7 +287,7 @@ internal static class BoothDownloader
                         .Groups[1]
                         .Value;
                     webClient.DownloadFile(redirectUrl,
-                        binaryDir + "/" + filename);
+                        binaryDir + "/" + $"{GUID}-{filename}");
                 }
 
                 Console.WriteLine("finished downloading: {0}",
