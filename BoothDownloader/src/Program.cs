@@ -153,7 +153,21 @@ internal static class BoothDownloader
         
         #region Parse Booth Item Page
 
-        var html = client.GetItemPage(boothId);
+        string html;
+        try
+        {
+            html = client.GetItemPage(boothId);
+        }
+        catch (System.Net.WebException webException)
+        {
+            Console.WriteLine($"A Web-exception was thrown and will be ignored for this item, Does the page still exist?\n {webException}");
+            return;
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"An unexpected exception occurred\n {e}");
+            return; 
+        }
 
         var imageCollection = ImageRegex.Matches(html)
             .Select(match => match.Value)
