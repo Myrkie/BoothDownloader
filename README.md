@@ -36,3 +36,7 @@ accessible via Ctrl + Shift + I
   "Auto_Zip": true
 }
 ```
+
+Copyright Notice:
+
+The image used in this project for its icon is sourced from booth.pm, owned by Pixiv. I do not own the rights to this image. All copyrights belong to their respective owners.
