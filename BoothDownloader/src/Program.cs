@@ -24,7 +24,9 @@ internal static class BoothDownloader
 
     private static readonly Regex GuidRegex = new(@"[a-f0-9-]{0,}\/i\/[0-9]{0,}\/[a-zA-Z0-9\-_]{0,}\.(png|jpg|gif)", RegexOptions.Compiled);
 
-    private static readonly Regex DownloadRegex = new(@"(?:\/items\/(\d+)).*?(https\:\/\/booth\.pm\/downloadables\/[0-9]{0,})", RegexOptions.Compiled);
+    private static readonly Regex ItemRegex = new(@"booth\.pm\/items\/(\d+)", RegexOptions.Compiled);
+
+    private static readonly Regex DownloadRegex = new(@"https\:\/\/booth\.pm\/downloadables\/[0-9]{0,}", RegexOptions.Compiled);
 
     private static readonly Regex DownloadNameRegex = new(@".*\/(.*)\?", RegexOptions.Compiled);
 
@@ -212,11 +214,21 @@ internal static class BoothDownloader
                         Console.WriteLine("starting to grab order downloads: {0}",
                             url);
                         var orderHtml = webClient.DownloadString(url);
-                        foreach (Match downloadMatch in DownloadRegex.Matches(orderHtml))
+
+                        // Class seperates the next item in the order list
+                        var splitByItem = orderHtml.Split("\"u-d-flex\"");
+
+                        foreach(var itemHtml in splitByItem)
                         {
-                            if (downloadMatch.Groups[1].Value == boothId.ToString())
+                            var itemMatch = ItemRegex.Match(itemHtml);
+
+                            if (itemMatch?.Groups[1].Value == boothId.ToString())
                             {
-                                downloadBag.Add(downloadMatch.Groups[2].Value);
+                                foreach (var downloadUrl in DownloadRegex.Matches(itemHtml)
+                                     .Select(match => match.Value))
+                                {
+                                    downloadBag.Add(downloadUrl);
+                                }
                             }
                         }
 
