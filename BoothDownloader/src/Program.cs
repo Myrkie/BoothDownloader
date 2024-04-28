@@ -4,6 +4,7 @@ using System.IO.Compression;
 using System.Text;
 using System.Text.RegularExpressions;
 using BoothDownloader.config;
+using BoothDownloader.misc;
 using BoothDownloader.web;
 
 namespace BoothDownloader;
@@ -55,11 +56,18 @@ internal static class BoothDownloader
             getDefaultValue: () => "./BoothDownloaderOut"
         );
 
+        var maxRetriesOption = new Option<int>(
+            name: "--max-retries",
+            description: "maximum retries for downloading binary files",
+            getDefaultValue: () => 3
+        );
+        
         rootCommand.AddGlobalOption(configOption);
         rootCommand.AddOption(boothOption);
         rootCommand.AddOption(outputDirectoryOption);
+        rootCommand.AddOption(maxRetriesOption);
 
-        rootCommand.SetHandler((configFile, boothId, outputDirectory) =>
+        rootCommand.SetHandler((configFile, boothId, outputDirectory, maxRetries) =>
         {
             var config = new JsonConfig(configFile);
             _configextern = config;
@@ -113,23 +121,24 @@ internal static class BoothDownloader
                 {
                     Console.WriteLine("Downloading all Paid Orders!\n");
                     var list = BoothOrders.Ordersloop();
+                    Console.WriteLine($"Orders to download: {list.Count}\nthis may be more than expected as this doesnt account for invalid or deleted items\n");
 
                     foreach (var items in list)
                     {
                         Console.WriteLine($"Downloading {items.Id}\n");
-                        mainparsing(items.Id, outputDirectory, idFromArgument, config, client, hasValidCookie);
+                        mainparsing(items.Id, outputDirectory, idFromArgument, config, client, hasValidCookie, maxRetries);
                     }
                 }
                 else Console.WriteLine("Cannot download paid orders with invalid cookie.\n"); Thread.Sleep(1500);
-            }else mainparsing(boothId, outputDirectory, idFromArgument, config, client, hasValidCookie);
+            }else mainparsing(boothId, outputDirectory, idFromArgument, config, client, hasValidCookie, maxRetries);
             
             
-        }, configOption, boothOption, outputDirectoryOption);
+        }, configOption, boothOption, outputDirectoryOption, maxRetriesOption);
 
         return await rootCommand.InvokeAsync(args);
     }
 
-    private static void mainparsing(string? boothId, string outputDirectory, bool idFromArgument, JsonConfig config, BoothClient client, bool hasValidCookie)
+    private static void mainparsing(string? boothId, string outputDirectory, bool idFromArgument, JsonConfig config, BoothClient client, bool hasValidCookie, int maxRetries)
     {
         #region Prep Booth ID
 
@@ -137,9 +146,17 @@ internal static class BoothDownloader
             .Value;
 
         #endregion
+        
+        Console.WriteLine($"max-retries set to {maxRetries}");
+        Console.WriteLine($"requested booth id {boothId}");
 
         #region Prep Folders
 
+        if (boothId == "")
+        {
+            Console.WriteLine("Booth ID is invalid"); 
+            return;
+        }
         var outputDir = Directory.CreateDirectory(outputDirectory);
         if (Directory.Exists(outputDir + "/" + boothId))
         {
@@ -163,6 +180,7 @@ internal static class BoothDownloader
         catch (System.Net.WebException webException)
         {
             Console.WriteLine($"A Web-exception was thrown and will be ignored for this item, Does the page still exist?\n {webException}");
+            Directory.Delete(binaryDir + "/" + boothId, true);
             return;
         }
         catch (Exception e)
@@ -286,7 +304,6 @@ internal static class BoothDownloader
                     .ToString()
                     .Split('/')
                     .Last();
-                Console.WriteLine("name: " + name);
                 webClient.DownloadFile(url,
                     entryDir + "/" + name);
                 Console.WriteLine("finished downloading: {0}",
@@ -298,7 +315,6 @@ internal static class BoothDownloader
 
         var downloadTasks = downloadBag.Select(url => Task.Factory.StartNew(() =>
             {
-                var GUID = Guid.NewGuid().ToString();
                 using var webClient = client.MakeWebClient();
                 Console.WriteLine("starting on thread: {0}",
                     Environment.CurrentManagedThreadId);
@@ -314,8 +330,33 @@ internal static class BoothDownloader
                     var filename = DownloadNameRegex.Match(redirectUrl.ToString())
                         .Groups[1]
                         .Value;
-                    webClient.DownloadFile(redirectUrl,
-                        binaryDir + "/" + $"{GUID}-{filename}");
+                    
+                    var newFilename = Utils.GetUniqueFilename(binaryDir.ToString(), filename);
+
+                    // network conditions can lead to this being a requirement.
+                    // eat a d*ck spectrum
+                    bool downloadSuccess = false;
+                    int retryCount = 0;
+                    while (!downloadSuccess && retryCount < maxRetries)
+                    {
+                        try
+                        { 
+                            webClient.DownloadFile(redirectUrl, binaryDir + "/" + newFilename);
+                            downloadSuccess = true;
+                        }
+                        catch (Exception ex)
+                        {
+                            retryCount++;
+                            Console.WriteLine($"Failed to download {url}. Retry attempt {retryCount}/{maxRetries}. Error: {ex.Message}");
+                        }
+                    }
+
+                    if (!downloadSuccess)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine($"Failed to download {url} after {maxRetries} attempts.");
+                        Console.ResetColor();
+                    }
                 }
 
                 Console.WriteLine("finished downloading: {0}",
