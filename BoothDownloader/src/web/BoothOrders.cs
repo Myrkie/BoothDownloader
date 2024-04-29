@@ -1,5 +1,3 @@
-using System.Net;
-
 namespace BoothDownloader.web;
 
 public class BoothOrders
@@ -25,7 +23,7 @@ public class BoothOrders
     private static async Task<List<Items>> OrdersParse(int pageNumber)
     {
         List<Items> items = new();
-        var boothclient = new BoothClient(BoothDownloader._configextern.Config);
+        var boothclient = new BoothClient(BoothDownloader.Configextern.Config);
         var client = boothclient.MakeHttpClient();
         
         if(client is null) throw new ArgumentNullException("client is null");

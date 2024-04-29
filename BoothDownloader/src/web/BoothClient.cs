@@ -9,7 +9,7 @@ public class BoothClient
     private const string UrlItemPage = "https://booth.pm/en/items";
     private Config Config { get; }
 
-    private static readonly HttpClientHandler HttpHandler = new HttpClientHandler { AllowAutoRedirect = false };
+    private static readonly HttpClientHandler HttpHandler = new() { AllowAutoRedirect = false };
 
     public BoothClient(Config config)
     {

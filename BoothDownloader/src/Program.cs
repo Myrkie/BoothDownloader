@@ -12,9 +12,7 @@ namespace BoothDownloader;
 
 internal static class BoothDownloader
 {
-    internal static JsonConfig? _configextern;
-    
-    private const string Resized = "base_resized";
+    internal static JsonConfig? Configextern;
 
     private static readonly Regex ImageRegex =
         new(@"https\:\/\/booth\.pximg\.net\/[a-f0-9-]{0,}\/i\/[0-9]{0,}\/[a-zA-Z0-9\-_]{0,}\.(jpg|png)", RegexOptions.Compiled);
@@ -71,7 +69,7 @@ internal static class BoothDownloader
         rootCommand.SetHandler((configFile, boothId, outputDirectory, maxRetries) =>
         {
             var config = new JsonConfig(configFile);
-            _configextern = config;
+            Configextern = config;
             
             #region First Boot
 
@@ -127,11 +125,11 @@ internal static class BoothDownloader
                     foreach (var items in list)
                     {
                         Console.WriteLine($"Downloading {items.Id}\n");
-                        mainparsing(items.Id, outputDirectory, idFromArgument, config, client, hasValidCookie, maxRetries);
+                        Mainparsing(items.Id, outputDirectory, idFromArgument, config, client, hasValidCookie, maxRetries);
                     }
                 }
                 else Console.WriteLine("Cannot download paid orders with invalid cookie.\n"); Thread.Sleep(1500);
-            }else mainparsing(boothId, outputDirectory, idFromArgument, config, client, hasValidCookie, maxRetries);
+            }else Mainparsing(boothId, outputDirectory, idFromArgument, config, client, hasValidCookie, maxRetries);
             
             
         }, configOption, boothOption, outputDirectoryOption, maxRetriesOption);
@@ -139,7 +137,7 @@ internal static class BoothDownloader
         return await rootCommand.InvokeAsync(args);
     }
 
-    private static void mainparsing(string? boothId, string outputDirectory, bool idFromArgument, JsonConfig config, BoothClient client, bool hasValidCookie, int maxRetries)
+    private static void Mainparsing(string? boothId, string outputDirectory, bool idFromArgument, JsonConfig config, BoothClient client, bool hasValidCookie, int maxRetries)
     {
         #region Prep Booth ID
 
@@ -159,15 +157,15 @@ internal static class BoothDownloader
             return;
         }
         var outputDir = Directory.CreateDirectory(outputDirectory);
-        if (Directory.Exists(outputDir + "/" + boothId))
+        if (Directory.Exists(Path.Combine(outputDir.ToString(), boothId)))
         {
             Console.WriteLine("Directory already exists. Deleting...");
-            Directory.Delete(outputDir + "/" + boothId,
+            Directory.Delete(Path.Combine(outputDir.ToString(), boothId),
                 true);
         }
 
-        var entryDir = Directory.CreateDirectory(outputDir + "/" + boothId);
-        var binaryDir = Directory.CreateDirectory(entryDir + "/" + "Binary");
+        var entryDir = Directory.CreateDirectory(Path.Combine(outputDir.ToString(), boothId));
+        var binaryDir = Directory.CreateDirectory(Path.Combine(entryDir.ToString(), "Binary"));
 
         #endregion
         
@@ -181,7 +179,7 @@ internal static class BoothDownloader
         catch (System.Net.WebException webException)
         {
             Console.WriteLine($"A Web-exception was thrown and will be ignored for this item, Does the page still exist?\n {webException}");
-            Directory.Delete(binaryDir + "/" + boothId, true);
+            Directory.Delete(Path.Combine(binaryDir.ToString(), boothId), true);
             return;
         }
         catch (Exception e)
@@ -199,8 +197,8 @@ internal static class BoothDownloader
                     .ToString()
                     .Split('/')
                     .Last()
-                    .Contains(Resized)
-            );
+                    .Contains("base_resized")
+            ).ToArray();
         var gifCollection = ImageRegexGif.Matches(html)
             .Select(match => match.Value)
             .ToArray();
@@ -229,27 +227,25 @@ internal static class BoothDownloader
                 Task.WaitAll(ordersCollection.Select(url => Task.Factory.StartNew(() =>
                     {
                         using var webClient = client.MakeWebClient();
-                        Console.WriteLine("starting to grab order downloads: {0}", url);
+                        Console.WriteLine("Building download collection for url: {0}", url);
                         var orderHtml = webClient.DownloadString(url);
 
-                        // Class seperates the next item in the order list
+                        // Class separates the next item in the order list
                         var splitByItem = orderHtml.Split("\"u-d-flex\"");
 
                         foreach(var itemHtml in splitByItem)
                         {
                             var itemMatch = ItemRegex.Match(itemHtml);
 
-                            if (itemMatch?.Groups[1].Value == boothId.ToString())
+                            if (itemMatch.Groups[1].Value != boothId) continue;
+                            foreach (var downloadUrl in DownloadRegex.Matches(itemHtml)
+                                         .Select(match => match.Value))
                             {
-                                foreach (var downloadUrl in DownloadRegex.Matches(itemHtml)
-                                     .Select(match => match.Value))
-                                {
-                                    downloadBag.Add(downloadUrl);
-                                }
+                                downloadBag.Add(downloadUrl);
                             }
                         }
 
-                        Console.WriteLine("finished grabbing: {0}", url);
+                        Console.WriteLine("finished building download collection for url: {0}", url);
                     }))
                     .ToArray());
             }
@@ -268,7 +264,6 @@ internal static class BoothDownloader
         #endregion
 
         #region Download Processing
-        
         var combinedCollection = imageCollection
             .Concat(gifCollection)
             .Concat(downloadBag)
@@ -296,42 +291,57 @@ internal static class BoothDownloader
             CollapseWhenFinished = true
         };
         
-        var pbar = new ProgressBar(combinedCollection.Count, "Overall Progress", options);
+        var progressBar = new ProgressBar(combinedCollection.Count, "Overall Progress", options);
         
-        var imageTaskBar = pbar.Spawn(imageCollection.Count(), "ImageTasks", parentOptions);
+        var imageTaskMessage = "ImageTasks";
+        int remainingImageDownloads = imageCollection.Length;
+        var imageTaskBar = progressBar.Spawn(imageCollection.Length, imageTaskMessage, parentOptions);
         var imageTasks = imageCollection.Select(url => Task.Factory.StartNew(() =>
         {
             using var webClient = client.MakeWebClient();
             var name = GuidRegex.Match(url).ToString().Split('/').Last();
             var child = imageTaskBar.Spawn(10000, name, childOptions);
             var childProgress = new ChildProgressBarProgress(child);
-            DownloadFileAsync(url, Path.Combine(entryDir.ToString(), name), childProgress).GetAwaiter().GetResult();
+            
+            Utils.DownloadFileAsync(url, Path.Combine(entryDir.ToString(), name), childProgress).GetAwaiter().GetResult();
+            
             imageTaskBar.Tick();
-            pbar.Tick();
+            progressBar.Tick();
+            
+            Interlocked.Decrement(ref remainingImageDownloads);
+            imageTaskBar.Message = $"ImageTasks ({remainingImageDownloads} remaining)";
         })).ToArray();
         
-        var gifTaskBar = pbar.Spawn(gifCollection.Count(), "GifTasks", parentOptions);
+        var gifTaskMessage = "GifTasks";
+        int remainingGifDownloads = gifCollection.Length;
+        var gifTaskBar = progressBar.Spawn(gifCollection.Length, gifTaskMessage, parentOptions);
         var gifTasks = gifCollection.Select(url => Task.Factory.StartNew(() =>
         {
             using var webClient = client.MakeWebClient();
             var name = GuidRegex.Match(url).ToString().Split('/').Last();
             var child = gifTaskBar.Spawn(10000, name, childOptions);
             var childProgress = new ChildProgressBarProgress(child);
-            DownloadFileAsync(url, Path.Combine(entryDir.ToString(), name), childProgress).GetAwaiter().GetResult();
+            
+            Utils.DownloadFileAsync(url, Path.Combine(entryDir.ToString(), name), childProgress).GetAwaiter().GetResult();
+            
             gifTaskBar.Tick();
-            pbar.Tick();
+            progressBar.Tick();
+            
+            Interlocked.Decrement(ref remainingGifDownloads);
+            gifTaskBar.Message = $"GifTasks ({remainingGifDownloads} remaining)";
         })).ToArray();
-        
-        var downloadTaskBar = pbar.Spawn(downloadBag.Count, "DownloadTasks", parentOptions);
+
+
+        var downloadTaskMessage = "DownloadTasks";
+        int remainingDownloads = downloadBag.Count;
+        var downloadTaskBar = progressBar.Spawn(downloadBag.Count, downloadTaskMessage, parentOptions);
         var downloadTasks = downloadBag.Select(url => Task.Factory.StartNew(() =>
         {
             using var webClient = client.MakeWebClient();
             var httpClient = client.MakeHttpClient();
             var resp = httpClient.GetAsync(url).GetAwaiter().GetResult();
             var redirectUrl = resp.Headers.Location;
-            
             var filename = DownloadNameRegex.Match(redirectUrl.ToString()).Groups[1].Value;
-            
             var newFilename = Utils.GetUniqueFilename(binaryDir.ToString(), filename);
             
             var downloadSuccess = false;
@@ -343,14 +353,16 @@ internal static class BoothDownloader
             {
                 try
                 {
-                    DownloadFileAsync(redirectUrl.ToString(), binaryDir + "/" + newFilename, childProgress).GetAwaiter().GetResult();
+                    Utils.DownloadFileAsync(redirectUrl.ToString(), Path.Combine(binaryDir.ToString(),newFilename), childProgress).GetAwaiter().GetResult();
+                    Interlocked.Decrement(ref remainingDownloads);
+                    child.Message = $"DownloadTasks ({remainingDownloads} remaining)";
                     downloadSuccess = true;
                 }
                 catch (Exception ex)
                 {
                     retryCount++;
-                    message =
-                        $"Failed to download {url}. Retry attempt {retryCount}/{maxRetries}. Error: {ex.Message}";
+                    child.Message = $"Failed to download {url}. Retry attempt {retryCount}/{maxRetries}. Error: {ex.Message}";
+                    Thread.Sleep(5000);
                 }
             }
             if (retryCount < maxRetries)
@@ -359,11 +371,12 @@ internal static class BoothDownloader
             }
             
             downloadTaskBar.Tick();
-            pbar.Tick();
+            progressBar.Tick();
+            
             if (downloadSuccess) return;
             
             Console.ForegroundColor = ConsoleColor.Red;
-            message = $"Failed to download {url} after {maxRetries} attempts.";
+            child.Message = $"Failed to download {url} after {maxRetries} attempts.";
             Console.ResetColor();
         })).ToArray();
 
@@ -388,7 +401,7 @@ internal static class BoothDownloader
         else
             Console.WriteLine("No downloads found skipping downloader.");
         
-        pbar.Dispose();
+        progressBar.Dispose();
 
         #endregion
 
@@ -405,38 +418,10 @@ internal static class BoothDownloader
                 File.Delete(entryDir + ".zip");
             }
 
-            ZipFile.CreateFromDirectory(entryDir.ToString(),
-                entryDir + ".zip");
-            Directory.Delete(entryDir.ToString(),
-                true);
+            ZipFile.CreateFromDirectory(entryDir.ToString(), entryDir + ".zip");
+            Directory.Delete(entryDir.ToString(), true);
             Console.WriteLine("Zipped!");
         }
-
-        static async Task DownloadFileAsync(string url, string destinationPath, IProgress<double> progress)
-        {
-            using var httpClient = new HttpClient();
-            var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
-            response.EnsureSuccessStatusCode();
-            var contentLength = response.Content.Headers.ContentLength ?? -1;
-
-            using var stream = await response.Content.ReadAsStreamAsync();
-            var buffer = new byte[81920];
-            var totalBytesRead = 0L;
-            var bytesRead = 0L;
-            using var fileStream = File.Create(destinationPath); // Create the file stream
-            do
-            {
-                bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
-                if (bytesRead > 0)
-                {
-                    await fileStream.WriteAsync(buffer, 0, (int)bytesRead); // Write the downloaded data to the file
-                    totalBytesRead += bytesRead;
-                    progress.Report((double)totalBytesRead / contentLength);
-                }
-            } while (bytesRead > 0);
-        }
-
-        
         #endregion
 
         #region Exit Successfully
