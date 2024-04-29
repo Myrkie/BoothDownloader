@@ -229,10 +229,7 @@ internal static class BoothDownloader
                 Task.WaitAll(ordersCollection.Select(url => Task.Factory.StartNew(() =>
                     {
                         using var webClient = client.MakeWebClient();
-                        Console.WriteLine("starting on thread: {0}",
-                            Environment.CurrentManagedThreadId);
-                        Console.WriteLine("starting to grab order downloads: {0}",
-                            url);
+                        Console.WriteLine("starting to grab order downloads: {0}", url);
                         var orderHtml = webClient.DownloadString(url);
 
                         // Class seperates the next item in the order list
@@ -252,10 +249,7 @@ internal static class BoothDownloader
                             }
                         }
 
-                        Console.WriteLine("finished grabbing: {0}",
-                            url);
-                        Console.WriteLine("finished grabbing on thread: {0}",
-                            Environment.CurrentManagedThreadId);
+                        Console.WriteLine("finished grabbing: {0}", url);
                     }))
                     .ToArray());
             }
