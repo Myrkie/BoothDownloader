@@ -4,13 +4,13 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BoothDownloader", "BoothDow
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
-		Debug|Any CPU = Debug|Any CPU
-		Release|Any CPU = Release|Any CPU
+		Release Windows|Any CPU = Release Windows|Any CPU
+		Release Linux|Any CPU = Release Linux|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{A17CF993-E41E-4BA3-9DED-222786DE52EC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{A17CF993-E41E-4BA3-9DED-222786DE52EC}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{A17CF993-E41E-4BA3-9DED-222786DE52EC}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{A17CF993-E41E-4BA3-9DED-222786DE52EC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A17CF993-E41E-4BA3-9DED-222786DE52EC}.Release Windows|Any CPU.ActiveCfg = Release Windows|x64
+		{A17CF993-E41E-4BA3-9DED-222786DE52EC}.Release Windows|Any CPU.Build.0 = Release Windows|x64
+		{A17CF993-E41E-4BA3-9DED-222786DE52EC}.Release Linux|Any CPU.ActiveCfg = Release Linux|x64
+		{A17CF993-E41E-4BA3-9DED-222786DE52EC}.Release Linux|Any CPU.Build.0 = Release Linux|x64
 	EndGlobalSection
 EndGlobal

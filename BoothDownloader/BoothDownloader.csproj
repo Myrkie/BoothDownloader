@@ -1,7 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <RuntimeIdentifier>win-x64</RuntimeIdentifier>
         <OutputType>Exe</OutputType>
         <TargetFramework>net8.0</TargetFramework>
         <RootNamespace>BoothDownloader</RootNamespace>
@@ -14,32 +13,46 @@
         <Authors>BoothDownloader</Authors>
         <ApplicationIcon>Icon\store-logo-booth.ico</ApplicationIcon>
         <IsPackable>false</IsPackable>
-        <PublishTrimmed>true</PublishTrimmed>
         <SelfContained>true</SelfContained>
+        <UseSystemResourceKeys>true</UseSystemResourceKeys>
+        <InvariantGlobalization>true</InvariantGlobalization>
+        <StripSymbols>true</StripSymbols>
+        <DebuggerSupport>false</DebuggerSupport>
+        <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+        <PublishLzmaCompressed>true</PublishLzmaCompressed>
+        <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+        <Configurations>Release Windows;Release Linux</Configurations>
+        <Platforms>x64</Platforms>
     </PropertyGroup>
 
-    <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+    <PropertyGroup Condition=" '$(Configuration)' == 'Release Windows' ">
       <PlatformTarget>x64</PlatformTarget>
+      <DefineConstants>WINDOWS_BUILD</DefineConstants>
+      <AssemblyName>BoothDownloader-Window-64</AssemblyName>
     </PropertyGroup>
 
-    <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
-      <PlatformTarget>x64</PlatformTarget>
+    <PropertyGroup Condition=" '$(Configuration)' == 'Release Linux' ">
+        <PlatformTarget>x64</PlatformTarget>
+        <DefineConstants>LINUX_BUILD</DefineConstants>
+        <AssemblyName>BoothDownloader-Linux-64</AssemblyName>
     </PropertyGroup>
+
 
     <ItemGroup>
-      <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
-      <PackageReference Include="ShellProgressBar" Version="5.2.0" />
-      <PackageReference Include="Squid-Box.SevenZipSharp" Version="1.6.1.23" />
-      <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+        <PackageReference Include="PublishAotCompressed" Version="1.0.3" />
+        <PackageReference Include="ShellProgressBar" Version="5.2.0" />
+        <PackageReference Include="Squid-Box.SevenZipSharp" Version="1.6.1.23" />
+        <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="resources\" />
+        <Folder Include="resources\" />
     </ItemGroup>
 
     <ItemGroup>
-      <None Remove="resources\7z.dll" />
-      <EmbeddedResource Include="resources\7z.dll" />
+        <None Remove="resources\7z.dll" />
+        <EmbeddedResource Include="resources\7z.dll" />
     </ItemGroup>
 
 </Project>

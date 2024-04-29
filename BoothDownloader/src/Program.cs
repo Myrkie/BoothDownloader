@@ -410,20 +410,38 @@ internal static class BoothDownloader
 
         if (config.Config.AutoZip)
         {
+#if WINDOWS_BUILD
             var child = progressBar.Spawn(10000, "Zipping", childOptions);
             var childProgress = new ChildProgressBarProgress(child);
-
             if (File.Exists(entryDir + ".7z"))
             {
                 Console.WriteLine("File already exists. Deleting...");
                 File.Delete(entryDir + ".7z");
             }
+#endif
+#if LINUX_BUILD
+            progressBar.Dispose();
+            if (File.Exists(entryDir + ".zip"))
+            {
+                Console.WriteLine("File already exists. Deleting...");
+                File.Delete(entryDir + ".zip");
+            }
+#endif
+#if WINDOWS_BUILD
             Utils.CompressDirectory(entryDir.ToString(), entryDir + ".7z", childProgress);
+#endif
+#if LINUX_BUILD
+            Console.WriteLine("Zipping!");
+            ZipFile.CreateFromDirectory(entryDir.ToString(),entryDir + ".zip");
+            Console.WriteLine("Zipped!");
+#endif
             
             Directory.Delete(entryDir.ToString(), true);
         }
         
+#if WINDOWS_BUILD
         progressBar.Dispose();
+#endif
         #endregion
 
         #region Exit Successfully
@@ -433,7 +451,12 @@ internal static class BoothDownloader
         if (idFromArgument && config.Config.AutoZip)
         {
             // used for standard output redirection for path to zip file with another process
+#if WINDOWS_BUILD
             Console.WriteLine("ENVFilePATH: " + entryDir + ".7z");
+#endif
+#if LINUX_BUILD
+            Console.WriteLine("ENVFilePATH: " + entryDir + ".zip");
+#endif
         }
         
         #endregion
