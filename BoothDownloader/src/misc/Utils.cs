@@ -1,7 +1,65 @@
+using System.Reflection;
+using SevenZip;
+
 namespace BoothDownloader.misc
 {
-    public class Utils
+    public static class Utils
     {
+        public static void Init7Z()
+        {
+            var resourceName = "BoothDownloader.resources.7z.dll";
+            var tempDirectory = Path.Combine(Path.GetTempPath(), "BoothDownloader");
+            var tempDllPath = Path.Combine(tempDirectory, "7z.dll");
+
+            if (File.Exists(tempDllPath))
+            {
+                SevenZipBase.SetLibraryPath(tempDllPath);
+                return;
+            }
+
+            Directory.CreateDirectory(tempDirectory);
+            
+            var assembly = Assembly.GetExecutingAssembly();
+            using (var resourceStream = assembly.GetManifestResourceStream(resourceName))
+            {
+                if (resourceStream == null)
+                {
+                    Console.WriteLine("Error: 7z.dll resource not found.");
+                    return;
+                }
+
+                using (var fileStream = File.Create(tempDllPath))
+                {
+                    resourceStream.CopyTo(fileStream);
+                }
+            }
+            SevenZipBase.SetLibraryPath(tempDllPath);
+        }
+        
+        public static void CompressDirectory(string sourceDirectory, string destinationArchive, IProgress<double> progress)
+        {
+            var compressor = new SevenZipCompressor
+            {
+                CompressionLevel = CompressionLevel.Ultra,
+                CompressionMethod = CompressionMethod.Lzma2,
+                DirectoryStructure = true,
+                PreserveDirectoryRoot = true,
+                ArchiveFormat = OutArchiveFormat.SevenZip
+            };
+            compressor.Compressing += (_, e) =>
+            {
+                progress.Report(e.PercentDone / 100.0);
+            };
+
+            try
+            {
+                compressor.CompressDirectory(sourceDirectory, destinationArchive);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Exception caught in CompressDirectory: {0}", ex);
+            }
+        }
         public static async Task DownloadFileAsync(string url, string destinationPath, IProgress<double> progress)
         {
             using var httpClient = new HttpClient();
@@ -9,20 +67,18 @@ namespace BoothDownloader.misc
             response.EnsureSuccessStatusCode();
             var contentLength = response.Content.Headers.ContentLength ?? -1;
 
-            using var stream = await response.Content.ReadAsStreamAsync();
+            await using var stream = await response.Content.ReadAsStreamAsync();
             var buffer = new byte[81920];
             var totalBytesRead = 0L;
-            var bytesRead = 0L;
-            using var fileStream = File.Create(destinationPath);
+            long bytesRead;
+            await using var fileStream = File.Create(destinationPath);
             do
             {
                 bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
-                if (bytesRead > 0)
-                {
-                    await fileStream.WriteAsync(buffer, 0, (int)bytesRead); 
-                    totalBytesRead += bytesRead;
-                    progress.Report((double)totalBytesRead / contentLength);
-                }
+                if (bytesRead <= 0) continue;
+                await fileStream.WriteAsync(buffer, 0, (int)bytesRead); 
+                totalBytesRead += bytesRead;
+                progress.Report((double)totalBytesRead / contentLength);
             } while (bytesRead > 0);
         }
         

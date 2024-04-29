@@ -70,6 +70,7 @@ internal static class BoothDownloader
         {
             var config = new JsonConfig(configFile);
             Configextern = config;
+            Utils.Init7Z();
             
             #region First Boot
 
@@ -342,21 +343,21 @@ internal static class BoothDownloader
             var resp = httpClient.GetAsync(url).GetAwaiter().GetResult();
             var redirectUrl = resp.Headers.Location;
             var filename = DownloadNameRegex.Match(redirectUrl.ToString()).Groups[1].Value;
-            var newFilename = Utils.GetUniqueFilename(binaryDir.ToString(), filename);
+            var uniqueFilename = Utils.GetUniqueFilename(binaryDir.ToString(), filename);
             
-            var downloadSuccess = false;
+            var success = false;
             var retryCount = 0;
-            var message = newFilename;
-            var child = downloadTaskBar.Spawn(10000, message, childOptions);
+            var child = downloadTaskBar.Spawn(10000, uniqueFilename, childOptions);
             var childProgress = new ChildProgressBarProgress(child);
-            while (!downloadSuccess && retryCount < maxRetries)
+            while (!success && retryCount < maxRetries)
             {
                 try
                 {
-                    Utils.DownloadFileAsync(redirectUrl.ToString(), Path.Combine(binaryDir.ToString(),newFilename), childProgress).GetAwaiter().GetResult();
+                    child.Message = uniqueFilename;
+                    Utils.DownloadFileAsync(redirectUrl.ToString(), Path.Combine(binaryDir.ToString(),uniqueFilename), childProgress).GetAwaiter().GetResult();
                     Interlocked.Decrement(ref remainingDownloads);
-                    child.Message = $"DownloadTasks ({remainingDownloads} remaining)";
-                    downloadSuccess = true;
+                    downloadTaskBar.Message = $"DownloadTasks ({remainingDownloads} remaining)";
+                    success = true;
                 }
                 catch (Exception ex)
                 {
@@ -367,13 +368,13 @@ internal static class BoothDownloader
             }
             if (retryCount < maxRetries)
             {
-                downloadSuccess = false;
+                success = false;
             }
             
             downloadTaskBar.Tick();
             progressBar.Tick();
             
-            if (downloadSuccess) return;
+            if (success) return;
             
             Console.ForegroundColor = ConsoleColor.Red;
             child.Message = $"Failed to download {url} after {maxRetries} attempts.";
@@ -401,8 +402,6 @@ internal static class BoothDownloader
         else
             Console.WriteLine("No downloads found skipping downloader.");
         
-        progressBar.Dispose();
-
         #endregion
 
         #region Compression
@@ -411,17 +410,20 @@ internal static class BoothDownloader
 
         if (config.Config.AutoZip)
         {
-            Console.WriteLine("Zipping!");
-            if (File.Exists(entryDir + ".zip"))
+            var child = progressBar.Spawn(10000, "Zipping", childOptions);
+            var childProgress = new ChildProgressBarProgress(child);
+
+            if (File.Exists(entryDir + ".7z"))
             {
                 Console.WriteLine("File already exists. Deleting...");
-                File.Delete(entryDir + ".zip");
+                File.Delete(entryDir + ".7z");
             }
-
-            ZipFile.CreateFromDirectory(entryDir.ToString(), entryDir + ".zip");
+            Utils.CompressDirectory(entryDir.ToString(), entryDir + ".7z", childProgress);
+            
             Directory.Delete(entryDir.ToString(), true);
-            Console.WriteLine("Zipped!");
         }
+        
+        progressBar.Dispose();
         #endregion
 
         #region Exit Successfully
@@ -431,7 +433,7 @@ internal static class BoothDownloader
         if (idFromArgument && config.Config.AutoZip)
         {
             // used for standard output redirection for path to zip file with another process
-            Console.WriteLine("ENVFilePATH: " + entryDir + ".zip");
+            Console.WriteLine("ENVFilePATH: " + entryDir + ".7z");
         }
         
         #endregion
