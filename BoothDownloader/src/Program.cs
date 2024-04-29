@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using BoothDownloader.config;
 using BoothDownloader.misc;
 using BoothDownloader.web;
+using ShellProgressBar;
 
 namespace BoothDownloader;
 
@@ -188,6 +189,7 @@ internal static class BoothDownloader
             Console.WriteLine($"An unexpected exception occurred\n {e}");
             return; 
         }
+        
 
         var imageCollection = ImageRegex.Matches(html)
             .Select(match => match.Value)
@@ -272,99 +274,104 @@ internal static class BoothDownloader
         #endregion
 
         #region Download Processing
-
+        
+        var combinedCollection = imageCollection
+            .Concat(gifCollection)
+            .Concat(downloadBag)
+            .ToList();
+        
+        var options = new ProgressBarOptions
+        {
+            BackgroundColor = ConsoleColor.White,
+            ForegroundColor = ConsoleColor.Yellow,
+            ProgressCharacter = '─',
+            CollapseWhenFinished = false
+        };
+        var parentOptions = new ProgressBarOptions
+        {
+            BackgroundColor = ConsoleColor.White,
+            ForegroundColor = ConsoleColor.Blue,
+            ProgressCharacter = '─',
+            CollapseWhenFinished = false
+        };
+        var childOptions = new ProgressBarOptions
+        {
+            BackgroundColor = ConsoleColor.White,
+            ForegroundColor = ConsoleColor.Green,
+            ProgressCharacter = '─',
+            CollapseWhenFinished = true
+        };
+        
+        var pbar = new ProgressBar(combinedCollection.Count, "Overall Progress", options);
+        
+        var imageTaskBar = pbar.Spawn(imageCollection.Count(), "ImageTasks", parentOptions);
         var imageTasks = imageCollection.Select(url => Task.Factory.StartNew(() =>
-            {
-                using var webClient = client.MakeWebClient();
-                Console.WriteLine("starting on thread: {0}",
-                    Environment.CurrentManagedThreadId);
-                Console.WriteLine("starting to download: {0}",
-                    url);
-                var name = GuidRegex.Match(url)
-                    .ToString()
-                    .Split('/')
-                    .Last();
-                webClient.DownloadFile(url,
-                    entryDir + "/" + name);
-                Console.WriteLine("finished downloading: {0}",
-                    url);
-                Console.WriteLine("finished downloading on thread: {0}",
-                    Environment.CurrentManagedThreadId);
-            }))
-            .ToArray();
-
+        {
+            using var webClient = client.MakeWebClient();
+            var name = GuidRegex.Match(url).ToString().Split('/').Last();
+            var child = imageTaskBar.Spawn(10000, name, childOptions);
+            var childProgress = new ChildProgressBarProgress(child);
+            DownloadFileAsync(url, Path.Combine(entryDir.ToString(), name), childProgress).GetAwaiter().GetResult();
+            imageTaskBar.Tick();
+            pbar.Tick();
+        })).ToArray();
+        
+        var gifTaskBar = pbar.Spawn(gifCollection.Count(), "GifTasks", parentOptions);
         var gifTasks = gifCollection.Select(url => Task.Factory.StartNew(() =>
-            {
-                using var webClient = client.MakeWebClient();
-                Console.WriteLine("starting on thread: {0}",
-                    Environment.CurrentManagedThreadId);
-                Console.WriteLine("starting to download: {0}",
-                    url);
-                var name = GuidRegex.Match(url)
-                    .ToString()
-                    .Split('/')
-                    .Last();
-                webClient.DownloadFile(url,
-                    entryDir + "/" + name);
-                Console.WriteLine("finished downloading: {0}",
-                    url);
-                Console.WriteLine("finished downloading on thread: {0}",
-                    Environment.CurrentManagedThreadId);
-            }))
-            .ToArray();
-
+        {
+            using var webClient = client.MakeWebClient();
+            var name = GuidRegex.Match(url).ToString().Split('/').Last();
+            var child = gifTaskBar.Spawn(10000, name, childOptions);
+            var childProgress = new ChildProgressBarProgress(child);
+            DownloadFileAsync(url, Path.Combine(entryDir.ToString(), name), childProgress).GetAwaiter().GetResult();
+            gifTaskBar.Tick();
+            pbar.Tick();
+        })).ToArray();
+        
+        var downloadTaskBar = pbar.Spawn(downloadBag.Count, "DownloadTasks", parentOptions);
         var downloadTasks = downloadBag.Select(url => Task.Factory.StartNew(() =>
+        {
+            using var webClient = client.MakeWebClient();
+            var httpClient = client.MakeHttpClient();
+            var resp = httpClient.GetAsync(url).GetAwaiter().GetResult();
+            var redirectUrl = resp.Headers.Location;
+            
+            var filename = DownloadNameRegex.Match(redirectUrl.ToString()).Groups[1].Value;
+            
+            var newFilename = Utils.GetUniqueFilename(binaryDir.ToString(), filename);
+            
+            var downloadSuccess = false;
+            var retryCount = 0;
+            var message = newFilename;
+            var child = downloadTaskBar.Spawn(10000, message, childOptions);
+            var childProgress = new ChildProgressBarProgress(child);
+            while (!downloadSuccess && retryCount < maxRetries)
             {
-                using var webClient = client.MakeWebClient();
-                Console.WriteLine("starting on thread: {0}",
-                    Environment.CurrentManagedThreadId);
-                Console.WriteLine("starting to download: {0}",
-                    url);
-                var httpClient = client.MakeHttpClient();
-                var resp = httpClient.GetAsync(url)
-                    .GetAwaiter()
-                    .GetResult();
-                var redirectUrl = resp.Headers.Location;
-                if (redirectUrl != null)
+                try
                 {
-                    var filename = DownloadNameRegex.Match(redirectUrl.ToString())
-                        .Groups[1]
-                        .Value;
-                    
-                    var newFilename = Utils.GetUniqueFilename(binaryDir.ToString(), filename);
-
-                    // network conditions can lead to this being a requirement.
-                    // eat a d*ck spectrum
-                    bool downloadSuccess = false;
-                    int retryCount = 0;
-                    while (!downloadSuccess && retryCount < maxRetries)
-                    {
-                        try
-                        { 
-                            webClient.DownloadFile(redirectUrl, binaryDir + "/" + newFilename);
-                            downloadSuccess = true;
-                        }
-                        catch (Exception ex)
-                        {
-                            retryCount++;
-                            Console.WriteLine($"Failed to download {url}. Retry attempt {retryCount}/{maxRetries}. Error: {ex.Message}");
-                        }
-                    }
-
-                    if (!downloadSuccess)
-                    {
-                        Console.ForegroundColor = ConsoleColor.Red;
-                        Console.WriteLine($"Failed to download {url} after {maxRetries} attempts.");
-                        Console.ResetColor();
-                    }
+                    DownloadFileAsync(redirectUrl.ToString(), binaryDir + "/" + newFilename, childProgress).GetAwaiter().GetResult();
+                    downloadSuccess = true;
                 }
-
-                Console.WriteLine("finished downloading: {0}",
-                    url);
-                Console.WriteLine("finished downloading on thread: {0}",
-                    Environment.CurrentManagedThreadId);
-            }))
-            .ToArray();
+                catch (Exception ex)
+                {
+                    retryCount++;
+                    message =
+                        $"Failed to download {url}. Retry attempt {retryCount}/{maxRetries}. Error: {ex.Message}";
+                }
+            }
+            if (retryCount < maxRetries)
+            {
+                downloadSuccess = false;
+            }
+            
+            downloadTaskBar.Tick();
+            pbar.Tick();
+            if (downloadSuccess) return;
+            
+            Console.ForegroundColor = ConsoleColor.Red;
+            message = $"Failed to download {url} after {maxRetries} attempts.";
+            Console.ResetColor();
+        })).ToArray();
 
         if (imageTasks.Length > 0)
         {
@@ -386,6 +393,8 @@ internal static class BoothDownloader
         }
         else
             Console.WriteLine("No downloads found skipping downloader.");
+        
+        pbar.Dispose();
 
         #endregion
 
@@ -409,6 +418,31 @@ internal static class BoothDownloader
             Console.WriteLine("Zipped!");
         }
 
+        static async Task DownloadFileAsync(string url, string destinationPath, IProgress<double> progress)
+        {
+            using var httpClient = new HttpClient();
+            var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+            response.EnsureSuccessStatusCode();
+            var contentLength = response.Content.Headers.ContentLength ?? -1;
+
+            using var stream = await response.Content.ReadAsStreamAsync();
+            var buffer = new byte[81920];
+            var totalBytesRead = 0L;
+            var bytesRead = 0L;
+            using var fileStream = File.Create(destinationPath); // Create the file stream
+            do
+            {
+                bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
+                if (bytesRead > 0)
+                {
+                    await fileStream.WriteAsync(buffer, 0, (int)bytesRead); // Write the downloaded data to the file
+                    totalBytesRead += bytesRead;
+                    progress.Report((double)totalBytesRead / contentLength);
+                }
+            } while (bytesRead > 0);
+        }
+
+        
         #endregion
 
         #region Exit Successfully
