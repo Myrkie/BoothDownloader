@@ -433,12 +433,7 @@ internal static class BoothDownloader
         if (idFromArgument && config.Config.AutoZip)
         {
             // used for standard output redirection for path to zip file with another process
-#if WINDOWS_BUILD
-            Console.WriteLine("ENVFilePATH: " + entryDir + ".7z");
-#endif
-#if LINUX_BUILD
             Console.WriteLine("ENVFilePATH: " + entryDir + ".zip");
-#endif
         }
         
         #endregion
