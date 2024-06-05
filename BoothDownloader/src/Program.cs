@@ -70,7 +70,6 @@ internal static class BoothDownloader
         {
             var config = new JsonConfig(configFile);
             Configextern = config;
-            Utils.Init7Z();
             
             #region First Boot
 
@@ -246,7 +245,7 @@ internal static class BoothDownloader
                             }
                         }
 
-                        Console.WriteLine("finished building download collection for url: {0}", url);
+                        Console.WriteLine("Finished building download collection for url: {0}", url);
                     }))
                     .ToArray());
             }
@@ -255,9 +254,9 @@ internal static class BoothDownloader
         {
             Console.WriteLine(e);
             StringBuilder sb = new StringBuilder();
-            sb.Append("exception occured in order downloader");
-            sb.Append("dumping orders collection " + ordersCollection);
-            sb.Append("dumping orders urls downloadBag" + downloadBag);
+            sb.Append("Exception occured in order downloader.");
+            sb.Append("Dumping orders collection: " + ordersCollection);
+            sb.Append("Dumping orders urls downloadBag: " + downloadBag);
             Console.WriteLine(sb);
             throw new BoothClient.DownloadFailedException();
         }
