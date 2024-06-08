@@ -239,7 +239,7 @@ internal static partial class BoothDownloader
             {
                 Task.WaitAll(ordersCollection.Select(url => Task.Factory.StartNew(async () =>
                     {
-                        using var httpClient = client.MakeHttpClient();
+                        var httpClient = client.MakeHttpClient();
                         Console.WriteLine("Building download collection for url: {0}", url);
                         var orderResponse = httpClient.GetAsync(url, cancellationToken);
                         var orderHtml = await orderResponse.Result.Content.ReadAsStringAsync(cancellationToken);
@@ -310,7 +310,7 @@ internal static partial class BoothDownloader
         var imageTaskMessage = "ImageTasks";
         int remainingImageDownloads = imageCollection.Length;
         var imageTaskBar = progressBar.Spawn(imageCollection.Length, imageTaskMessage, parentOptions);
-        var imageTasks = imageCollection.Select(url => Task.Factory.StartNew(async () =>
+        var imageTasks = imageCollection.Select(url => Task.Run(async () =>
         {
             var name = GuidRegex.Match(url).ToString().Split('/').Last();
             var child = imageTaskBar.Spawn(10000, name, childOptions);
@@ -328,7 +328,7 @@ internal static partial class BoothDownloader
         var gifTaskMessage = "GifTasks";
         int remainingGifDownloads = gifCollection.Length;
         var gifTaskBar = progressBar.Spawn(gifCollection.Length, gifTaskMessage, parentOptions);
-        var gifTasks = gifCollection.Select(url => Task.Factory.StartNew(async () =>
+        var gifTasks = gifCollection.Select(url => Task.Run(async () =>
         {
             var name = GuidRegex.Match(url).ToString().Split('/').Last();
             var child = gifTaskBar.Spawn(10000, name, childOptions);
@@ -347,14 +347,14 @@ internal static partial class BoothDownloader
         var downloadTaskMessage = "DownloadTasks";
         int remainingDownloads = downloadBag.Count;
         var downloadTaskBar = progressBar.Spawn(downloadBag.Count, downloadTaskMessage, parentOptions);
-        var downloadTasks = downloadBag.Select(url => Task.Factory.StartNew(async () =>
+        var downloadTasks = downloadBag.Select(url => Task.Run(async () =>
         {
             var httpClient = client.MakeHttpClient();
             var resp = await httpClient.GetAsync(url, cancellationToken);
-            var redirectUrl = resp.Headers.Location;
-            var filename = DownloadNameRegex.Match(redirectUrl.ToString()).Groups[1].Value;
+            var redirectUrl = resp.Headers.Location!.ToString();
+            var filename = DownloadNameRegex.Match(redirectUrl).Groups[1].Value;
             var uniqueFilename = Utils.GetUniqueFilename(binaryDir.ToString(), filename);
-            
+
             var success = false;
             var retryCount = 0;
             var child = downloadTaskBar.Spawn(10000, uniqueFilename, childOptions);
@@ -364,7 +364,7 @@ internal static partial class BoothDownloader
                 try
                 {
                     child.Message = uniqueFilename;
-                    await Utils.DownloadFileAsync(redirectUrl.ToString(), Path.Combine(binaryDir.ToString(),uniqueFilename), childProgress, cancellationToken);
+                    await Utils.DownloadFileAsync(redirectUrl, Path.Combine(binaryDir.ToString(), uniqueFilename), childProgress, cancellationToken);
                     Interlocked.Decrement(ref remainingDownloads);
                     downloadTaskBar.Message = $"DownloadTasks ({remainingDownloads} remaining)";
                     success = true;
@@ -373,7 +373,7 @@ internal static partial class BoothDownloader
                 {
                     retryCount++;
                     child.Message = $"Failed to download {url}. Retry attempt {retryCount}/{maxRetries}. Error: {ex.Message}";
-                    await Task.Delay(5000, cancellationToken);
+                     await Task.Delay(5000, cancellationToken);
                 }
             }
             if (retryCount < maxRetries)
@@ -391,32 +391,21 @@ internal static partial class BoothDownloader
             Console.ResetColor();
         })).ToArray();
 
-        if (imageTasks.Length > 0)
-        {
-            Task.WaitAll(imageTasks, cancellationToken);
-        }
-        else
+        if(imageTasks.Length == 0)
             Console.WriteLine("No images found skipping downloader.");
 
-        if (gifTasks.Length > 0)
-        {
-            Task.WaitAll(gifTasks, cancellationToken);
-        }
-        else
+        if(gifTasks.Length == 0)
             Console.WriteLine("No gifs found skipping downloader.");
 
-        if (downloadTasks.Length > 0)
-        {
-            Task.WaitAll(downloadTasks, cancellationToken);
-        }
-        else
+        if(downloadTasks.Length == 0)
             Console.WriteLine("No downloads found skipping downloader.");
+
+        var allTasks = imageTasks.Concat(gifTasks).Concat(downloadTasks).ToArray();
+        await Task.WhenAll(allTasks);
 
         #endregion
 
         #region Compression
-
-        await Task.Delay(1500, cancellationToken);
 
         if (config.Config.AutoZip)
         {
