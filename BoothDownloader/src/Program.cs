@@ -5,9 +5,9 @@ using System.CommandLine.Parsing;
 using System.IO.Compression;
 using System.Text;
 using System.Text.RegularExpressions;
-using BoothDownloader.config;
-using BoothDownloader.misc;
-using BoothDownloader.web;
+using BoothDownloader.Configuration;
+using BoothDownloader.Miscellaneous;
+using BoothDownloader.Web;
 using ShellProgressBar;
 
 namespace BoothDownloader;

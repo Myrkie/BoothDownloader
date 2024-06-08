@@ -1,5 +1,7 @@
 using System.Collections.Concurrent;
 
+namespace BoothDownloader.Miscellaneous;
+
 public static class Utils
 {
     public static async Task DownloadFileAsync(string url, string destinationPath, IProgress<double> progress, CancellationToken cancellationToken = default)

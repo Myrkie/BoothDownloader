@@ -1,6 +1,6 @@
 ﻿using Newtonsoft.Json;
 
-namespace BoothDownloader.config;
+namespace BoothDownloader.Configuration;
 
 public class JsonConfig
 {

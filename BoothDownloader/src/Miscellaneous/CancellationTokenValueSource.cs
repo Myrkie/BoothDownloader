@@ -1,5 +1,7 @@
 ﻿using System.CommandLine.Binding;
 
+namespace BoothDownloader.Miscellaneous;
+
 public class CancellationTokenValueSource : IValueDescriptor<CancellationToken>, IValueSource
 {
     public bool TryGetValue(IValueDescriptor valueDescriptor, BindingContext bindingContext, out object? boundValue)

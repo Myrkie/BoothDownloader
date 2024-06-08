@@ -1,7 +1,7 @@
 ﻿using System.Net;
-using BoothDownloader.config;
+using BoothDownloader.Configuration;
 
-namespace BoothDownloader.web;
+namespace BoothDownloader.Web;
 
 public class BoothClient
 {

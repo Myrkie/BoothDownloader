@@ -1,6 +1,6 @@
-namespace BoothDownloader.web;
+namespace BoothDownloader.Web;
 
-public class BoothLibrary
+public class BoothOrders
 {
     private static bool _done;
 
