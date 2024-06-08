@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Reflection;
 using SevenZip;
 
@@ -80,7 +81,7 @@ namespace BoothDownloader.misc
             } while (bytesRead > 0);
         }
 
-        public static string GetUniqueFilename(string binaryDir, string filename)
+        public static string GetUniqueFilename(string binaryDir, string filename, ConcurrentBag<string> files)
         {
             int counter = 0;
             string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(filename);
@@ -88,7 +89,7 @@ namespace BoothDownloader.misc
 
             string newFilename = $"{fileNameWithoutExtension}{extension}";
 
-            while (File.Exists(Path.Combine(binaryDir, newFilename)))
+            while (File.Exists(Path.Combine(binaryDir, newFilename)) || files.Contains(newFilename))
             {
                 counter++;
                 newFilename = $"{fileNameWithoutExtension} ({counter}){extension}";

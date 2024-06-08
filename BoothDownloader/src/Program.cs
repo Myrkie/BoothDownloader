@@ -278,10 +278,7 @@ internal static partial class BoothDownloader
         #endregion
 
         #region Download Processing
-        var combinedCollection = imageCollection
-            .Concat(gifCollection)
-            .Concat(downloadBag)
-            .ToList();
+        var totalCount = imageCollection.Length + gifCollection.Length + downloadBag.Count;
         
         var options = new ProgressBarOptions
         {
@@ -305,18 +302,28 @@ internal static partial class BoothDownloader
             CollapseWhenFinished = true
         };
         
-        var progressBar = new ProgressBar(combinedCollection.Count, "Overall Progress", options);
-        
+        var progressBar = new ProgressBar(totalCount, "Overall Progress", options);
+        ConcurrentBag<string> entryDirFiles = [];
+        ConcurrentBag<string> binaryDirFiles = [];
+
         var imageTaskMessage = "ImageTasks";
         int remainingImageDownloads = imageCollection.Length;
         var imageTaskBar = progressBar.Spawn(imageCollection.Length, imageTaskMessage, parentOptions);
         var imageTasks = imageCollection.Select(url => Task.Run(async () =>
         {
-            var name = GuidRegex.Match(url).ToString().Split('/').Last();
-            var child = imageTaskBar.Spawn(10000, name, childOptions);
+            var filename = GuidRegex.Match(url).ToString().Split('/').Last();
+
+            string uniqueFilename;
+            lock (entryDirFiles)
+            {
+                uniqueFilename = Utils.GetUniqueFilename(binaryDir.ToString(), filename, binaryDirFiles);
+                entryDirFiles.Add(uniqueFilename);
+            }
+
+            var child = imageTaskBar.Spawn(10000, uniqueFilename, childOptions);
             var childProgress = new ChildProgressBarProgress(child);
             
-            await Utils.DownloadFileAsync(url, Path.Combine(entryDir.ToString(), name), childProgress, cancellationToken);
+            await Utils.DownloadFileAsync(url, Path.Combine(entryDir.ToString(), uniqueFilename), childProgress, cancellationToken);
             
             imageTaskBar.Tick();
             progressBar.Tick();
@@ -330,11 +337,19 @@ internal static partial class BoothDownloader
         var gifTaskBar = progressBar.Spawn(gifCollection.Length, gifTaskMessage, parentOptions);
         var gifTasks = gifCollection.Select(url => Task.Run(async () =>
         {
-            var name = GuidRegex.Match(url).ToString().Split('/').Last();
-            var child = gifTaskBar.Spawn(10000, name, childOptions);
+            var filename = GuidRegex.Match(url).ToString().Split('/').Last();
+
+            string uniqueFilename;
+            lock (entryDirFiles)
+            {
+                uniqueFilename = Utils.GetUniqueFilename(binaryDir.ToString(), filename, binaryDirFiles);
+                entryDirFiles.Add(uniqueFilename);
+            }
+
+            var child = gifTaskBar.Spawn(10000, uniqueFilename, childOptions);
             var childProgress = new ChildProgressBarProgress(child);
             
-            await Utils.DownloadFileAsync(url, Path.Combine(entryDir.ToString(), name), childProgress, cancellationToken);
+            await Utils.DownloadFileAsync(url, Path.Combine(entryDir.ToString(), uniqueFilename), childProgress, cancellationToken);
             
             gifTaskBar.Tick();
             progressBar.Tick();
@@ -354,10 +369,12 @@ internal static partial class BoothDownloader
             var redirectUrl = resp.Headers.Location!.ToString();
             var filename = DownloadNameRegex.Match(redirectUrl).Groups[1].Value;
 
-            // @TODO:
-            // This needs to be refactored. Since utilizing more async methods, the unique filename generation needs to be done in a more async friendly way.
-            // Probably storing the list of filenames in a concurrent bag in app along with checking in directory.
-            var uniqueFilename = Utils.GetUniqueFilename(binaryDir.ToString(), filename);
+            string uniqueFilename;
+            lock(binaryDirFiles)
+            {
+                uniqueFilename = Utils.GetUniqueFilename(binaryDir.ToString(), filename, binaryDirFiles);
+                binaryDirFiles.Add(uniqueFilename);
+            }
 
             var success = false;
             var retryCount = 0;
