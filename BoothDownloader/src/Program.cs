@@ -413,19 +413,20 @@ internal static partial class BoothDownloader
         if (imageTasks.Length == 0)
         {
             imageTaskBar.Tick();
-            Console.WriteLine("No images found skipping downloader.");
+            imageTaskBar.Message = "No images found skipping downloader.";
+            imageTaskBar.WriteLine("No images found skipping downloader.");
         }
 
         if (gifTasks.Length == 0)
         {
             gifTaskBar.Tick();
-            Console.WriteLine("No gifs found skipping downloader.");
+            gifTaskBar.WriteLine("No gifs found skipping downloader.");
         }
 
         if (downloadTasks.Length == 0)
         {
             downloadTaskBar.Tick();
-            Console.WriteLine("No downloads found skipping downloader.");
+            downloadTaskBar.WriteLine("No downloads found skipping downloader.");
         }
 
         var allTasks = imageTasks.Concat(gifTasks).Concat(downloadTasks).ToArray();
