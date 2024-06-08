@@ -413,7 +413,6 @@ internal static partial class BoothDownloader
         if (imageTasks.Length == 0)
         {
             imageTaskBar.Tick();
-            imageTaskBar.Message = "No images found skipping downloader.";
             imageTaskBar.WriteLine("No images found skipping downloader.");
         }
 
