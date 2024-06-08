@@ -5,8 +5,8 @@ namespace BoothDownloader.config;
 public class JsonConfig
 {
     private string Path { get; }
-    public Config Config = new Config();
-    
+    public Config Config = new();
+
     public JsonConfig(string path)
     {
         Path = path;

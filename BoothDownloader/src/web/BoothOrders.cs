@@ -2,36 +2,34 @@ namespace BoothDownloader.web;
 
 public class BoothOrders
 {
-    private static  bool _done;
-    
-    public static List<Items> Ordersloop()
+    private static bool _done;
+
+    public static async Task<List<Items>> OrdersLoopAsync(CancellationToken cancellationToken = default)
     {
-        List<Items> allItems = new List<Items>();
-                
+        List<Items> allItems = [];
+
         int pageNumber = 1;
         while (!_done)
         {
-            List<Items>? items = OrdersParse(pageNumber).Result;
+            List<Items>? items = await OrdersParseAsync(pageNumber, cancellationToken);
             allItems.AddRange(items);
             pageNumber++;
         }
         allItems.RemoveAll(s => string.IsNullOrWhiteSpace(s.Id));
-        
+
         return allItems;
     }
-    
-    private static async Task<List<Items>> OrdersParse(int pageNumber)
+
+    private static async Task<List<Items>> OrdersParseAsync(int pageNumber, CancellationToken cancellationToken = default)
     {
-        List<Items> items = new();
+        List<Items> items = [];
         var boothclient = new BoothClient(BoothDownloader.Configextern.Config);
         var client = boothclient.MakeHttpClient();
-        
-        if(client is null) throw new ArgumentNullException("client is null");
         string url = $"https://accounts.booth.pm/orders?page={pageNumber}";
-        HttpResponseMessage? response = await client.GetAsync(url);
+        HttpResponseMessage? response = await client.GetAsync(url, cancellationToken);
         try
         {
-            string content = await response.Content.ReadAsStringAsync();
+            string content = await response.Content.ReadAsStringAsync(cancellationToken);
             content = content.Replace("<", "\r\n<");
             string[] sheet = content.Split("<div class=\"sheet");
             if (!content.Contains("<div class=\"sheet"))
@@ -43,10 +41,10 @@ public class BoothOrders
             {
                 Items item = new();
                 StringReader reader = new(itemsheet);
-                string line;
+                string? line;
                 while ((line = reader.ReadLine()) != null)
                 {
-                    if (line.Contains("<a href=\"https://booth.pm/en/items/"))
+                    if (line?.Contains("<a href=\"https://booth.pm/en/items/") == true)
                         item.Id = line.Split('/').Last().Split("\"").First();
                 }
                 items.Add(item);

@@ -14,20 +14,11 @@ public class BoothClient
     public BoothClient(Config config)
     {
         Config = config;
-        
-        
     }
+
     public class DownloadFailedException : Exception
     {
         public override string Message => "The order collection downloader has failed";
-    }
-
-    public ResponseUriWebClient MakeWebClient()
-    {
-        var client = new ResponseUriWebClient();
-        client.Headers.Add(HttpRequestHeader.Cookie, $"adult=t; _plaza_session_nktz7u={Config.Cookie}");
-
-        return client;
     }
 
     public HttpClient MakeHttpClient()
@@ -39,17 +30,20 @@ public class BoothClient
         return httpClient;
     }
 
-    public bool IsCookieValid()
+    public async Task<bool> IsCookieValidAsync(CancellationToken cancellationToken = default)
     {
-        var client = MakeWebClient();
-        client.DownloadString(UrlAccountSettings);
+        var client = MakeHttpClient();
+        var response = await client.GetAsync(UrlAccountSettings, cancellationToken);
 
-        return client.ResponseUri!.ToString() == UrlAccountSettings;
+        return response.StatusCode == HttpStatusCode.OK;
     }
 
-    public string GetItemPage(string id)
+    public async Task<string> GetItemPageAsync(string id, CancellationToken cancellationToken = default)
     {
-        var client = MakeWebClient();
-        return client.DownloadString($"{UrlItemPage}/{id}");
+        var client = MakeHttpClient();
+        var response = await client.GetAsync($"{UrlItemPage}/{id}", cancellationToken);
+        var responseString = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        return responseString;
     }
 }
