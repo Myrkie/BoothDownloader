@@ -144,9 +144,8 @@ internal static partial class BoothDownloader
             }
         }, configOption, boothOption, outputDirectoryOption, maxRetriesOption, cancellationTokenValueSource);
 
-        var clb = new CommandLineBuilder(rootCommand);
-        clb.CancelOnProcessTermination();
-        var built = clb.Build();
+        var commandLineBuilder = new CommandLineBuilder(rootCommand);
+        var built = commandLineBuilder.Build();
         return await built.InvokeAsync(args);
     }
 
@@ -237,7 +236,7 @@ internal static partial class BoothDownloader
         {
             if (ordersCollection.Length > 0)
             {
-                Task.WaitAll(ordersCollection.Select(url => Task.Factory.StartNew(async () =>
+                await Task.WhenAll(ordersCollection.Select(url => Task.Run(async () =>
                     {
                         var httpClient = client.MakeHttpClient();
                         Console.WriteLine("Building download collection for url: {0}", url);
@@ -260,8 +259,7 @@ internal static partial class BoothDownloader
                         }
 
                         Console.WriteLine("Finished building download collection for url: {0}", url);
-                    }))
-                    .ToArray(), cancellationToken);
+                    })));
             }
         }
         catch (Exception e)
