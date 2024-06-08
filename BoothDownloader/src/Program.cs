@@ -62,7 +62,7 @@ internal static partial class BoothDownloader
             description: "maximum retries for downloading binary files",
             getDefaultValue: () => 3
         );
-        
+
         rootCommand.AddGlobalOption(configOption);
         rootCommand.AddOption(boothOption);
         rootCommand.AddOption(outputDirectoryOption);
@@ -74,7 +74,7 @@ internal static partial class BoothDownloader
         {
             var config = new JsonConfig(configFile);
             Configextern = config;
-            
+
             #region First Boot
 
             if (config.Config.FirstBoot)
@@ -88,16 +88,16 @@ internal static partial class BoothDownloader
             }
 
             #endregion
-            
-            
+
+
             var idFromArgument = true;
             if (boothId == null)
             {
                 idFromArgument = false;
                 Console.WriteLine("Enter the Booth ID or URL: ");
                 boothId = Console.ReadLine();
-            }   
-            
+            }
+
             #region Prep Booth Client
 
             var client = new BoothClient(config.Config);
@@ -157,7 +157,7 @@ internal static partial class BoothDownloader
             .Value;
 
         #endregion
-        
+
         Console.WriteLine($"max-retries set to {maxRetries}");
         Console.WriteLine($"requested booth id {boothId}");
 
@@ -165,7 +165,7 @@ internal static partial class BoothDownloader
 
         if (boothId == "")
         {
-            Console.WriteLine("Booth ID is invalid"); 
+            Console.WriteLine("Booth ID is invalid");
             return;
         }
         var outputDir = Directory.CreateDirectory(outputDirectory);
@@ -180,7 +180,7 @@ internal static partial class BoothDownloader
         var binaryDir = Directory.CreateDirectory(Path.Combine(entryDir.ToString(), "Binary"));
 
         #endregion
-        
+
         #region Parse Booth Item Page
 
         string html;
@@ -197,9 +197,9 @@ internal static partial class BoothDownloader
         catch (Exception e)
         {
             Console.WriteLine($"An unexpected exception occurred\n {e}");
-            return; 
+            return;
         }
-        
+
 
         var imageCollection = ImageRegex.Matches(html)
             .Select(match => match.Value)
@@ -237,29 +237,29 @@ internal static partial class BoothDownloader
             if (ordersCollection.Length > 0)
             {
                 await Task.WhenAll(ordersCollection.Select(url => Task.Run(async () =>
+                {
+                    var httpClient = client.MakeHttpClient();
+                    Console.WriteLine("Building download collection for url: {0}", url);
+                    var orderResponse = await httpClient.GetAsync(url, cancellationToken);
+                    var orderHtml = await orderResponse.Content.ReadAsStringAsync(cancellationToken);
+
+                    // Class separates the next item in the order list
+                    var splitByItem = orderHtml.Split("\"u-d-flex\"");
+
+                    foreach (var itemHtml in splitByItem)
                     {
-                        var httpClient = client.MakeHttpClient();
-                        Console.WriteLine("Building download collection for url: {0}", url);
-                        var orderResponse = await httpClient.GetAsync(url, cancellationToken);
-                        var orderHtml = await orderResponse.Content.ReadAsStringAsync(cancellationToken);
+                        var itemMatch = ItemRegex.Match(itemHtml);
 
-                        // Class separates the next item in the order list
-                        var splitByItem = orderHtml.Split("\"u-d-flex\"");
-
-                        foreach(var itemHtml in splitByItem)
+                        if (itemMatch.Groups[1].Value != boothId) continue;
+                        foreach (var downloadUrl in DownloadRegex.Matches(itemHtml)
+                                     .Select(match => match.Value))
                         {
-                            var itemMatch = ItemRegex.Match(itemHtml);
-
-                            if (itemMatch.Groups[1].Value != boothId) continue;
-                            foreach (var downloadUrl in DownloadRegex.Matches(itemHtml)
-                                         .Select(match => match.Value))
-                            {
-                                downloadBag.Add(downloadUrl);
-                            }
+                            downloadBag.Add(downloadUrl);
                         }
+                    }
 
-                        Console.WriteLine("Finished building download collection for url: {0}", url);
-                    })));
+                    Console.WriteLine("Finished building download collection for url: {0}", url);
+                })));
             }
         }
         catch (Exception e)
@@ -277,7 +277,7 @@ internal static partial class BoothDownloader
 
         #region Download Processing
         var totalCount = imageCollection.Length + gifCollection.Length + downloadBag.Count;
-        
+
         var options = new ProgressBarOptions
         {
             BackgroundColor = ConsoleColor.White,
@@ -299,7 +299,7 @@ internal static partial class BoothDownloader
             ProgressCharacter = '─',
             CollapseWhenFinished = true
         };
-        
+
         var progressBar = new ProgressBar(totalCount, "Overall Progress", options);
         ConcurrentBag<string> entryDirFiles = [];
         ConcurrentBag<string> binaryDirFiles = [];
@@ -320,16 +320,16 @@ internal static partial class BoothDownloader
 
             var child = imageTaskBar.Spawn(10000, uniqueFilename, childOptions);
             var childProgress = new ChildProgressBarProgress(child);
-            
+
             await Utils.DownloadFileAsync(url, Path.Combine(entryDir.ToString(), uniqueFilename), childProgress, cancellationToken);
-            
+
             imageTaskBar.Tick();
             progressBar.Tick();
-            
+
             Interlocked.Decrement(ref remainingImageDownloads);
             imageTaskBar.Message = $"ImageTasks ({remainingImageDownloads} remaining)";
         })).ToArray();
-        
+
         var gifTaskMessage = "GifTasks";
         int remainingGifDownloads = gifCollection.Length;
         var gifTaskBar = progressBar.Spawn(gifCollection.Length, gifTaskMessage, parentOptions);
@@ -346,12 +346,12 @@ internal static partial class BoothDownloader
 
             var child = gifTaskBar.Spawn(10000, uniqueFilename, childOptions);
             var childProgress = new ChildProgressBarProgress(child);
-            
+
             await Utils.DownloadFileAsync(url, Path.Combine(entryDir.ToString(), uniqueFilename), childProgress, cancellationToken);
-            
+
             gifTaskBar.Tick();
             progressBar.Tick();
-            
+
             Interlocked.Decrement(ref remainingGifDownloads);
             gifTaskBar.Message = $"GifTasks ({remainingGifDownloads} remaining)";
         })).ToArray();
@@ -368,7 +368,7 @@ internal static partial class BoothDownloader
             var filename = DownloadNameRegex.Match(redirectUrl).Groups[1].Value;
 
             string uniqueFilename;
-            lock(binaryDirFiles)
+            lock (binaryDirFiles)
             {
                 uniqueFilename = Utils.GetUniqueFilename(binaryDir.ToString(), filename, binaryDirFiles);
                 binaryDirFiles.Add(uniqueFilename);
@@ -392,37 +392,37 @@ internal static partial class BoothDownloader
                 {
                     retryCount++;
                     child.Message = $"Failed to download {url}. Retry attempt {retryCount}/{maxRetries}. Error: {ex.Message}";
-                     await Task.Delay(5000, cancellationToken);
+                    await Task.Delay(5000, cancellationToken);
                 }
             }
             if (retryCount < maxRetries)
             {
                 success = false;
             }
-            
+
             downloadTaskBar.Tick();
             progressBar.Tick();
-            
+
             if (success) return;
-            
+
             Console.ForegroundColor = ConsoleColor.Red;
             child.Message = $"Failed to download {url} after {maxRetries} attempts.";
             Console.ResetColor();
         })).ToArray();
 
-        if(imageTasks.Length == 0)
+        if (imageTasks.Length == 0)
         {
             imageTaskBar.Tick();
             Console.WriteLine("No images found skipping downloader.");
         }
 
-        if(gifTasks.Length == 0)
+        if (gifTasks.Length == 0)
         {
             gifTaskBar.Tick();
             Console.WriteLine("No gifs found skipping downloader.");
         }
 
-        if(downloadTasks.Length == 0)
+        if (downloadTasks.Length == 0)
         {
             downloadTaskBar.Tick();
             Console.WriteLine("No downloads found skipping downloader.");
@@ -437,21 +437,21 @@ internal static partial class BoothDownloader
 
         if (config.Config.AutoZip)
         {
-            
+
             progressBar.Dispose();
             if (File.Exists(entryDir + ".zip"))
             {
                 Console.WriteLine("File already exists. Deleting...");
                 File.Delete(entryDir + ".zip");
             }
-            
+
             Console.WriteLine("Zipping!");
-            ZipFile.CreateFromDirectory(entryDir.ToString(),entryDir + ".zip");
+            ZipFile.CreateFromDirectory(entryDir.ToString(), entryDir + ".zip");
             Console.WriteLine("Zipped!");
-            
+
             Directory.Delete(entryDir.ToString(), true);
         }
-        
+
         #endregion
 
         #region Exit Successfully
@@ -463,7 +463,7 @@ internal static partial class BoothDownloader
             // used for standard output redirection for path to zip file with another process
             Console.WriteLine("ENVFilePATH: " + entryDir + ".zip");
         }
-        
+
         #endregion
     }
 
