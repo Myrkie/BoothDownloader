@@ -4,14 +4,14 @@ public class BoothOrders
 {
     private static bool _done;
 
-    public static List<Items> Ordersloop()
+    public static async Task<List<Items>> OrdersLoopAsync(CancellationToken cancellationToken = default)
     {
         List<Items> allItems = [];
 
         int pageNumber = 1;
         while (!_done)
         {
-            List<Items>? items = OrdersParse(pageNumber).Result;
+            List<Items>? items = await OrdersParseAsync(pageNumber, cancellationToken);
             allItems.AddRange(items);
             pageNumber++;
         }
@@ -20,16 +20,16 @@ public class BoothOrders
         return allItems;
     }
 
-    private static async Task<List<Items>> OrdersParse(int pageNumber)
+    private static async Task<List<Items>> OrdersParseAsync(int pageNumber, CancellationToken cancellationToken = default)
     {
         List<Items> items = [];
         var boothclient = new BoothClient(BoothDownloader.Configextern.Config);
         var client = boothclient.MakeHttpClient();
         string url = $"https://accounts.booth.pm/orders?page={pageNumber}";
-        HttpResponseMessage? response = await client.GetAsync(url);
+        HttpResponseMessage? response = await client.GetAsync(url, cancellationToken);
         try
         {
-            string content = await response.Content.ReadAsStringAsync();
+            string content = await response.Content.ReadAsStringAsync(cancellationToken);
             content = content.Replace("<", "\r\n<");
             string[] sheet = content.Split("<div class=\"sheet");
             if (!content.Contains("<div class=\"sheet"))

@@ -123,7 +123,7 @@ internal static partial class BoothDownloader
                 if (hasValidCookie)
                 {
                     Console.WriteLine("Downloading all Paid Orders!\n");
-                    var list = BoothOrders.Ordersloop();
+                    var list = await BoothOrders.OrdersLoopAsync(cancellationToken);
                     Console.WriteLine($"Orders to download: {list.Count}\nthis may be more than expected as this doesnt account for invalid or deleted items\n");
 
                     foreach (var items in list)
@@ -241,8 +241,8 @@ internal static partial class BoothDownloader
                     {
                         var httpClient = client.MakeHttpClient();
                         Console.WriteLine("Building download collection for url: {0}", url);
-                        var orderResponse = httpClient.GetAsync(url, cancellationToken);
-                        var orderHtml = await orderResponse.Result.Content.ReadAsStringAsync(cancellationToken);
+                        var orderResponse = await httpClient.GetAsync(url, cancellationToken);
+                        var orderHtml = await orderResponse.Content.ReadAsStringAsync(cancellationToken);
 
                         // Class separates the next item in the order list
                         var splitByItem = orderHtml.Split("\"u-d-flex\"");

@@ -59,7 +59,7 @@ namespace BoothDownloader.misc
                 Console.WriteLine("Exception caught in CompressDirectory: {0}", ex);
             }
         }
-        public static async Task DownloadFileAsync(string url, string destinationPath, IProgress<double> progress, CancellationToken cancellationToken)
+        public static async Task DownloadFileAsync(string url, string destinationPath, IProgress<double> progress, CancellationToken cancellationToken = default)
         {
             using var httpClient = new HttpClient();
             var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
