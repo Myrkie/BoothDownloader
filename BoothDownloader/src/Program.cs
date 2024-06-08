@@ -353,6 +353,10 @@ internal static partial class BoothDownloader
             var resp = await httpClient.GetAsync(url, cancellationToken);
             var redirectUrl = resp.Headers.Location!.ToString();
             var filename = DownloadNameRegex.Match(redirectUrl).Groups[1].Value;
+
+            // @TODO:
+            // This needs to be refactored. Since utilizing more async methods, the unique filename generation needs to be done in a more async friendly way.
+            // Probably storing the list of filenames in a concurrent bag in app along with checking in directory.
             var uniqueFilename = Utils.GetUniqueFilename(binaryDir.ToString(), filename);
 
             var success = false;
