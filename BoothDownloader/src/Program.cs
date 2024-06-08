@@ -7,7 +7,6 @@ using System.Text;
 using System.Text.RegularExpressions;
 using BoothDownloader.config;
 using BoothDownloader.misc;
-using BoothDownloader.src.misc;
 using BoothDownloader.web;
 using ShellProgressBar;
 
@@ -118,7 +117,7 @@ internal static partial class BoothDownloader
 
             #endregion
 
-            if (boothId == "https://accounts.booth.pm/orders" | boothId?.ToLower() == "orders")
+            if (boothId?.Equals("https://accounts.booth.pm/orders", StringComparison.OrdinalIgnoreCase) == true || boothId?.Equals("orders", StringComparison.OrdinalIgnoreCase) == true || boothId?.Equals("order", StringComparison.OrdinalIgnoreCase) == true)
             {
                 if (hasValidCookie)
                 {
@@ -137,6 +136,14 @@ internal static partial class BoothDownloader
                     Console.WriteLine("Cannot download paid orders with invalid cookie.\n");
                     await Task.Delay(1500, cancellationToken);
                 }
+            }
+            else if (boothId?.Equals("https://accounts.booth.pm/library", StringComparison.OrdinalIgnoreCase) == true || boothId?.Equals("libraries", StringComparison.OrdinalIgnoreCase) == true || boothId?.Equals("library", StringComparison.OrdinalIgnoreCase) == true)
+            {
+
+            }
+            else if (boothId?.Equals("https://accounts.booth.pm/library/gifts", StringComparison.OrdinalIgnoreCase) == true || boothId?.Equals("gifts", StringComparison.OrdinalIgnoreCase) == true || boothId?.Equals("gift", StringComparison.OrdinalIgnoreCase) == true)
+            {
+
             }
             else
             {

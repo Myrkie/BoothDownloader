@@ -1,17 +1,17 @@
 namespace BoothDownloader.web;
 
-public class BoothOrders
+public class BoothLibrary
 {
     private static bool _done;
 
-    public static async Task<List<Items>> OrdersLoopAsync(CancellationToken cancellationToken = default)
+    public static async Task<List<BoothItem>> OrdersLoopAsync(CancellationToken cancellationToken = default)
     {
-        List<Items> allItems = [];
+        List<BoothItem> allItems = [];
 
         int pageNumber = 1;
         while (!_done)
         {
-            List<Items>? items = await OrdersParseAsync(pageNumber, cancellationToken);
+            List<BoothItem>? items = await OrdersParseAsync(pageNumber, cancellationToken);
             allItems.AddRange(items);
             pageNumber++;
         }
@@ -20,9 +20,9 @@ public class BoothOrders
         return allItems;
     }
 
-    private static async Task<List<Items>> OrdersParseAsync(int pageNumber, CancellationToken cancellationToken = default)
+    private static async Task<List<BoothItem>> OrdersParseAsync(int pageNumber, CancellationToken cancellationToken = default)
     {
-        List<Items> items = [];
+        List<BoothItem> items = [];
         var boothclient = new BoothClient(BoothDownloader.Configextern.Config);
         var client = boothclient.MakeHttpClient();
         string url = $"https://accounts.booth.pm/orders?page={pageNumber}";
@@ -39,7 +39,7 @@ public class BoothOrders
             }
             foreach (string itemsheet in sheet)
             {
-                Items item = new();
+                BoothItem item = new();
                 StringReader reader = new(itemsheet);
                 string? line;
                 while ((line = reader.ReadLine()) != null)
@@ -57,9 +57,4 @@ public class BoothOrders
             throw;
         }
     }
-}
-
-public class Items
-{
-    public string Id = "";
 }
