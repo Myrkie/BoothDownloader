@@ -129,7 +129,7 @@ internal static partial class BoothDownloader
                     foreach (var items in list)
                     {
                         Console.WriteLine($"Downloading {items.Id}\n");
-                        await Mainparsing(items.Id, outputDirectory, idFromArgument, config, client, hasValidCookie, maxRetries, cancellationToken);
+                        await MainParsingAsync(items.Id, outputDirectory, idFromArgument, config, client, hasValidCookie, maxRetries, cancellationToken);
                     }
                 }
                 else
@@ -140,7 +140,7 @@ internal static partial class BoothDownloader
             }
             else
             {
-                await Mainparsing(boothId, outputDirectory, idFromArgument, config, client, hasValidCookie, maxRetries, cancellationToken);
+                await MainParsingAsync(boothId, outputDirectory, idFromArgument, config, client, hasValidCookie, maxRetries, cancellationToken);
             }
         }, configOption, boothOption, outputDirectoryOption, maxRetriesOption, cancellationTokenValueSource);
 
@@ -149,7 +149,7 @@ internal static partial class BoothDownloader
         return await built.InvokeAsync(args);
     }
 
-    private static async Task Mainparsing(string? boothId, string outputDirectory, bool idFromArgument, JsonConfig config, BoothClient client, bool hasValidCookie, int maxRetries, CancellationToken cancellationToken = default)
+    private static async Task MainParsingAsync(string? boothId, string outputDirectory, bool idFromArgument, JsonConfig config, BoothClient client, bool hasValidCookie, int maxRetries, CancellationToken cancellationToken = default)
     {
         #region Prep Booth ID
 
