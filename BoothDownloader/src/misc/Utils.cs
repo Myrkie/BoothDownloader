@@ -18,7 +18,7 @@ namespace BoothDownloader.misc
             }
 
             Directory.CreateDirectory(tempDirectory);
-            
+
             var assembly = Assembly.GetExecutingAssembly();
             using (var resourceStream = assembly.GetManifestResourceStream(resourceName))
             {
@@ -28,14 +28,12 @@ namespace BoothDownloader.misc
                     return;
                 }
 
-                using (var fileStream = File.Create(tempDllPath))
-                {
-                    resourceStream.CopyTo(fileStream);
-                }
+                using var fileStream = File.Create(tempDllPath);
+                resourceStream.CopyTo(fileStream);
             }
             SevenZipBase.SetLibraryPath(tempDllPath);
         }
-        
+
         public static void CompressDirectory(string sourceDirectory, string destinationArchive, IProgress<double> progress)
         {
             var compressor = new SevenZipCompressor
@@ -60,28 +58,28 @@ namespace BoothDownloader.misc
                 Console.WriteLine("Exception caught in CompressDirectory: {0}", ex);
             }
         }
-        public static async Task DownloadFileAsync(string url, string destinationPath, IProgress<double> progress)
+        public static async Task DownloadFileAsync(string url, string destinationPath, IProgress<double> progress, CancellationToken cancellationToken)
         {
             using var httpClient = new HttpClient();
-            var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+            var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
             response.EnsureSuccessStatusCode();
             var contentLength = response.Content.Headers.ContentLength ?? -1;
 
-            await using var stream = await response.Content.ReadAsStreamAsync();
+            await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
             var buffer = new byte[81920];
             var totalBytesRead = 0L;
             long bytesRead;
             await using var fileStream = File.Create(destinationPath);
             do
             {
-                bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
+                bytesRead = await stream.ReadAsync(buffer, cancellationToken);
                 if (bytesRead <= 0) continue;
-                await fileStream.WriteAsync(buffer, 0, (int)bytesRead); 
+                await fileStream.WriteAsync(buffer.AsMemory(0, (int)bytesRead), cancellationToken);
                 totalBytesRead += bytesRead;
                 progress.Report((double)totalBytesRead / contentLength);
             } while (bytesRead > 0);
         }
-        
+
         public static string GetUniqueFilename(string binaryDir, string filename)
         {
             int counter = 0;

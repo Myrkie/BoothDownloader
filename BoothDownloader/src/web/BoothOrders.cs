@@ -2,12 +2,12 @@ namespace BoothDownloader.web;
 
 public class BoothOrders
 {
-    private static  bool _done;
-    
+    private static bool _done;
+
     public static List<Items> Ordersloop()
     {
-        List<Items> allItems = new List<Items>();
-                
+        List<Items> allItems = [];
+
         int pageNumber = 1;
         while (!_done)
         {
@@ -16,17 +16,15 @@ public class BoothOrders
             pageNumber++;
         }
         allItems.RemoveAll(s => string.IsNullOrWhiteSpace(s.Id));
-        
+
         return allItems;
     }
-    
+
     private static async Task<List<Items>> OrdersParse(int pageNumber)
     {
-        List<Items> items = new();
+        List<Items> items = [];
         var boothclient = new BoothClient(BoothDownloader.Configextern.Config);
         var client = boothclient.MakeHttpClient();
-        
-        if(client is null) throw new ArgumentNullException("client is null");
         string url = $"https://accounts.booth.pm/orders?page={pageNumber}";
         HttpResponseMessage? response = await client.GetAsync(url);
         try
@@ -43,10 +41,10 @@ public class BoothOrders
             {
                 Items item = new();
                 StringReader reader = new(itemsheet);
-                string line;
+                string? line;
                 while ((line = reader.ReadLine()) != null)
                 {
-                    if (line.Contains("<a href=\"https://booth.pm/en/items/"))
+                    if (line?.Contains("<a href=\"https://booth.pm/en/items/") == true)
                         item.Id = line.Split('/').Last().Split("\"").First();
                 }
                 items.Add(item);
