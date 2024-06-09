@@ -14,7 +14,7 @@ namespace BoothDownloader;
 internal static class BoothDownloader
 {
 
-    internal static JsonConfig? Configextern;
+    internal static JsonConfig? ConfigExtern;
 
     private static async Task<int> Main(string[] args)
     {
@@ -55,7 +55,7 @@ internal static class BoothDownloader
         rootCommand.SetHandler(async (configFile, boothId, outputDirectory, maxRetries, cancellationToken) =>
         {
             var config = new JsonConfig(configFile);
-            Configextern = config;
+            ConfigExtern = config;
 
             #region First Boot
 
@@ -100,13 +100,21 @@ internal static class BoothDownloader
 
             #endregion
 
-            if (boothId?.Equals("https://accounts.booth.pm/orders", StringComparison.OrdinalIgnoreCase) == true || boothId?.Equals("orders", StringComparison.OrdinalIgnoreCase) == true || boothId?.Equals("order", StringComparison.OrdinalIgnoreCase) == true)
+            bool isOrdersPage = boothId?.Equals("https://accounts.booth.pm/orders", StringComparison.OrdinalIgnoreCase) == true || boothId?.Equals("orders", StringComparison.OrdinalIgnoreCase) == true || boothId?.Equals("order", StringComparison.OrdinalIgnoreCase) == true;
+            bool isLibraryPage = boothId?.Equals("https://accounts.booth.pm/library", StringComparison.OrdinalIgnoreCase) == true || boothId?.Equals("library", StringComparison.OrdinalIgnoreCase) == true || boothId?.Equals("libraries", StringComparison.OrdinalIgnoreCase) == true;
+            bool isGiftPage = boothId?.Equals("https://accounts.booth.pm/library/gifts", StringComparison.OrdinalIgnoreCase) == true || boothId?.Equals("gift", StringComparison.OrdinalIgnoreCase) == true || boothId?.Equals("gifts", StringComparison.OrdinalIgnoreCase) == true;
+
+            if(isOrdersPage || isLibraryPage || isGiftPage)
             {
+                string itemTypeName = isOrdersPage ? "Orders" : isLibraryPage ? "Library" : isGiftPage ? "Gifts" : "UNKNOWN";
+                string pagePath = isOrdersPage ? "orders" : isLibraryPage ? "library" : isGiftPage ? "library/gifts" : string.Empty;
+                string seperator = isOrdersPage ? "<div class=\"sheet" : isLibraryPage || isGiftPage ? "<div class=\"mb-16 " : string.Empty;
+
                 if (hasValidCookie)
                 {
-                    Console.WriteLine("Downloading all Paid Orders!\n");
-                    var list = await BoothOrders.OrdersLoopAsync(cancellationToken);
-                    Console.WriteLine($"Orders to download: {list.Count}\nthis may be more than expected as this doesnt account for invalid or deleted items\n");
+                    Console.WriteLine($"Downloading all Paid {itemTypeName}!\n");
+                    var list = await BoothPageParser.ParserLoopAsync(pagePath, seperator, cancellationToken);
+                    Console.WriteLine($"{itemTypeName} to download: {list.Count}\nthis may be more than expected as this doesnt account for invalid or deleted items\n");
 
                     foreach (var items in list)
                     {
@@ -116,49 +124,7 @@ internal static class BoothDownloader
                 }
                 else
                 {
-                    Console.WriteLine("Cannot download paid orders with invalid cookie.\n");
-                    await Task.Delay(1500, cancellationToken);
-                }
-            }
-            else if (boothId?.Equals("https://accounts.booth.pm/library", StringComparison.OrdinalIgnoreCase) == true || boothId?.Equals("libraries", StringComparison.OrdinalIgnoreCase) == true || boothId?.Equals("library", StringComparison.OrdinalIgnoreCase) == true)
-            {
-
-                if (hasValidCookie)
-                {
-                    Console.WriteLine("Downloading all Paid Library Items!\n");
-                    var list = await BoothLibrary.LibraryLoopAsync(false, cancellationToken);
-                    Console.WriteLine($"Library Items to download: {list.Count}\nthis may be more than expected as this doesnt account for invalid or deleted items\n");
-
-                    foreach (var items in list)
-                    {
-                        Console.WriteLine($"Downloading {items.Id}\n");
-                        await MainParsingAsync(items.Id, outputDirectory, idFromArgument, config, client, hasValidCookie, maxRetries, cancellationToken);
-                    }
-                }
-                else
-                {
-                    Console.WriteLine("Cannot download paid library items with invalid cookie.\n");
-                    await Task.Delay(1500, cancellationToken);
-                }
-            }
-            else if (boothId?.Equals("https://accounts.booth.pm/library/gifts", StringComparison.OrdinalIgnoreCase) == true || boothId?.Equals("gifts", StringComparison.OrdinalIgnoreCase) == true || boothId?.Equals("gift", StringComparison.OrdinalIgnoreCase) == true)
-            {
-
-                if (hasValidCookie)
-                {
-                    Console.WriteLine("Downloading all Paid Gifts!\n");
-                    var list = await BoothLibrary.LibraryLoopAsync(true, cancellationToken);
-                    Console.WriteLine($"Gifts to download: {list.Count}\nthis may be more than expected as this doesnt account for invalid or deleted items\n");
-
-                    foreach (var items in list)
-                    {
-                        Console.WriteLine($"Downloading {items.Id}\n");
-                        await MainParsingAsync(items.Id, outputDirectory, idFromArgument, config, client, hasValidCookie, maxRetries, cancellationToken);
-                    }
-                }
-                else
-                {
-                    Console.WriteLine("Cannot download paid gifts with invalid cookie.\n");
+                    Console.WriteLine($"Cannot download Paid {itemTypeName} with invalid cookie.\n");
                     await Task.Delay(1500, cancellationToken);
                 }
             }
