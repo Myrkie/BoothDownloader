@@ -76,41 +76,23 @@ internal static class BoothDownloader
             }
 
             #region Prep Booth Client
-
-            var client = new BoothClient();
-            var hasValidCookie = await client.IsCookieValidAsync(cancellationToken);
-
-            if (hasValidCookie)
-            {
-                Console.WriteLine("Cookie is valid! - file downloads will function.\n");
-            }
-            else
-            {
-                Console.WriteLine(
-                    "Cookie is not valid file downloads will not function!\nImage downloads will still function\nUpdate your cookie in the config file.\n"
-                );
-                BoothConfig.Instance.Cookie = "";
-                BoothConfig.ConfigInstance.Save();
-            }
+            await BoothHttpClientManager.Setup(cancellationToken);
 
             #endregion
 
             bool isLibraryPage = boothId?.Equals("https://accounts.booth.pm/library", StringComparison.OrdinalIgnoreCase) == true
-            || boothId?.Equals("library", StringComparison.OrdinalIgnoreCase) == true
-            || boothId?.Equals("libraries", StringComparison.OrdinalIgnoreCase) == true;
+                              || boothId?.Equals("library", StringComparison.OrdinalIgnoreCase) == true
+                              || boothId?.Equals("libraries", StringComparison.OrdinalIgnoreCase) == true;
 
             bool isGiftPage = boothId?.Equals("https://accounts.booth.pm/library/gifts", StringComparison.OrdinalIgnoreCase) == true
-            || boothId?.Equals("gift", StringComparison.OrdinalIgnoreCase) == true
-            || boothId?.Equals("gifts", StringComparison.OrdinalIgnoreCase) == true;
+                           || boothId?.Equals("gift", StringComparison.OrdinalIgnoreCase) == true
+                           || boothId?.Equals("gifts", StringComparison.OrdinalIgnoreCase) == true;
 
-
-            bool isOrdersPage = boothId?.Equals("https://accounts.booth.pm/orders", StringComparison.OrdinalIgnoreCase) == true
+            if (boothId?.Equals("https://accounts.booth.pm/orders", StringComparison.OrdinalIgnoreCase) == true
             || boothId?.Equals("orders", StringComparison.OrdinalIgnoreCase) == true
             || boothId?.Equals("order", StringComparison.OrdinalIgnoreCase) == true
             || boothId?.Equals("purchase", StringComparison.OrdinalIgnoreCase) == true
-            || boothId?.Equals("purchases", StringComparison.OrdinalIgnoreCase) == true;
-
-            if(isOrdersPage)
+            || boothId?.Equals("purchases", StringComparison.OrdinalIgnoreCase) == true)
             {
                 Console.WriteLine("Orders Page now uses Library!");
                 isLibraryPage = true;
@@ -118,25 +100,16 @@ internal static class BoothDownloader
 
             if (isLibraryPage || isGiftPage)
             {
-                if(isOrdersPage)
-                {
-                    Console.WriteLine("Orders Page now uses Library!");
-                }
-
-                string itemTypeName =  isLibraryPage ? "Library" : isGiftPage ? "Gifts" : "UNKNOWN";
+                string itemTypeName = isLibraryPage ? "Library Items" : isGiftPage ? "Gifts" : "UNKNOWN";
                 string pagePath = isLibraryPage ? "library" : isGiftPage ? "library/gifts" : string.Empty;
 
-                if (hasValidCookie)
+                if (!BoothHttpClientManager.IsAnonymous)
                 {
-                    Console.WriteLine($"Downloading all Paid {itemTypeName}!\n");
-                    var list = await BoothPageParser.ParserLoopAsync(pagePath, cancellationToken);
-                    Console.WriteLine($"{itemTypeName} to download: {list.Count}\nThis may be more than expected as this doesnt account for invalid or deleted items\n");
+                    Console.WriteLine($"Grabbing all Paid {itemTypeName}!\n");
+                    var list = await BoothPageParser.GetPageItemsAsync(pagePath, cancellationToken);
 
-                    foreach (var items in list)
-                    {
-                        Console.WriteLine($"Downloading {items.Id}\n");
-                        await MainParsingAsync(items.Id, outputDirectory, idFromArgument, client, hasValidCookie, maxRetries, cancellationToken);
-                    }
+                    Console.WriteLine($"{itemTypeName} to download: {list.Count}\n");
+                    await BoothBatchDownloader.DownloadAsync(list, outputDirectory, maxRetries, cancellationToken);
                 }
                 else
                 {
@@ -146,7 +119,7 @@ internal static class BoothDownloader
             }
             else
             {
-                await MainParsingAsync(boothId, outputDirectory, idFromArgument, client, hasValidCookie, maxRetries, cancellationToken);
+                await MainParsingAsync(boothId, outputDirectory, idFromArgument, maxRetries, cancellationToken);
             }
         }, configOption, boothOption, outputDirectoryOption, maxRetriesOption, cancellationTokenValueSource);
 
@@ -155,7 +128,7 @@ internal static class BoothDownloader
         return await built.InvokeAsync(args);
     }
 
-    private static async Task MainParsingAsync(string? boothId, string outputDirectory, bool idFromArgument, BoothClient client, bool hasValidCookie, int maxRetries, CancellationToken cancellationToken = default)
+    private static async Task MainParsingAsync(string? boothId, string outputDirectory, bool idFromArgument, int maxRetries, CancellationToken cancellationToken = default)
     {
         #region Prep Booth ID
 
@@ -192,7 +165,7 @@ internal static class BoothDownloader
         string html;
         try
         {
-            html = await client.GetItemPageAsync(boothId, cancellationToken);
+            html = await BoothHttpClientManager.GetItemPageAsync(boothId, cancellationToken: cancellationToken);
         }
         catch (System.Net.WebException webException)
         {
@@ -220,12 +193,12 @@ internal static class BoothDownloader
         var gifCollection = RegexStore.ImageGifRegex.Matches(html)
             .Select(match => match.Value)
             .ToArray();
-        var downloadCollection = hasValidCookie
+        var downloadCollection = !BoothHttpClientManager.IsAnonymous
             ? RegexStore.DownloadRegex.Matches(html)
                 .Select(match => match.Value)
                 .ToArray()
             : [];
-        var ordersCollection = hasValidCookie
+        var ordersCollection = !BoothHttpClientManager.IsAnonymous
             ? RegexStore.OrdersRegex.Matches(html)
                 .Select(match => match.Value)
                 .ToArray()
@@ -244,9 +217,8 @@ internal static class BoothDownloader
             {
                 await Task.WhenAll(ordersCollection.Select(url => Task.Run(async () =>
                 {
-                    var httpClient = client.MakeHttpClient();
                     Console.WriteLine("Building download collection for url: {0}", url);
-                    var orderResponse = await httpClient.GetAsync(url, cancellationToken);
+                    var orderResponse = await BoothHttpClientManager.HttpClient.GetAsync(url, cancellationToken);
                     var orderHtml = await orderResponse.Content.ReadAsStringAsync(cancellationToken);
 
                     // Class separates the next item in the order list
@@ -276,7 +248,7 @@ internal static class BoothDownloader
             sb.Append("Dumping orders collection: " + ordersCollection);
             sb.Append("Dumping orders urls downloadBag: " + downloadBag);
             Console.WriteLine(sb);
-            throw new BoothClient.DownloadFailedException();
+            throw new BoothHttpClientManager.DownloadFailedException();
         }
 
         #endregion
@@ -368,8 +340,7 @@ internal static class BoothDownloader
         var downloadTaskBar = progressBar.Spawn(downloadBag.Count, downloadTaskMessage, parentOptions);
         var downloadTasks = downloadBag.Select(url => Task.Run(async () =>
         {
-            var httpClient = client.MakeHttpClient();
-            var resp = await httpClient.GetAsync(url, cancellationToken);
+            var resp = await BoothHttpClientManager.HttpClient.GetAsync(url, cancellationToken);
             var redirectUrl = resp.Headers.Location!.ToString();
             var filename = RegexStore.DownloadNameRegex.Match(redirectUrl).Groups[1].Value;
 
