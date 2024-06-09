@@ -100,9 +100,19 @@ internal static class BoothDownloader
 
             #endregion
 
-            bool isOrdersPage = boothId?.Equals("https://accounts.booth.pm/orders", StringComparison.OrdinalIgnoreCase) == true || boothId?.Equals("orders", StringComparison.OrdinalIgnoreCase) == true || boothId?.Equals("order", StringComparison.OrdinalIgnoreCase) == true;
-            bool isLibraryPage = boothId?.Equals("https://accounts.booth.pm/library", StringComparison.OrdinalIgnoreCase) == true || boothId?.Equals("library", StringComparison.OrdinalIgnoreCase) == true || boothId?.Equals("libraries", StringComparison.OrdinalIgnoreCase) == true;
-            bool isGiftPage = boothId?.Equals("https://accounts.booth.pm/library/gifts", StringComparison.OrdinalIgnoreCase) == true || boothId?.Equals("gift", StringComparison.OrdinalIgnoreCase) == true || boothId?.Equals("gifts", StringComparison.OrdinalIgnoreCase) == true;
+            bool isOrdersPage = boothId?.Equals("https://accounts.booth.pm/orders", StringComparison.OrdinalIgnoreCase) == true
+            || boothId?.Equals("orders", StringComparison.OrdinalIgnoreCase) == true
+            || boothId?.Equals("order", StringComparison.OrdinalIgnoreCase) == true
+            || boothId?.Equals("purchase", StringComparison.OrdinalIgnoreCase) == true
+            || boothId?.Equals("purchases", StringComparison.OrdinalIgnoreCase) == true;
+
+            bool isLibraryPage = boothId?.Equals("https://accounts.booth.pm/library", StringComparison.OrdinalIgnoreCase) == true
+            || boothId?.Equals("library", StringComparison.OrdinalIgnoreCase) == true
+            || boothId?.Equals("libraries", StringComparison.OrdinalIgnoreCase) == true;
+
+            bool isGiftPage = boothId?.Equals("https://accounts.booth.pm/library/gifts", StringComparison.OrdinalIgnoreCase) == true
+            || boothId?.Equals("gift", StringComparison.OrdinalIgnoreCase) == true
+            || boothId?.Equals("gifts", StringComparison.OrdinalIgnoreCase) == true;
 
             if(isOrdersPage || isLibraryPage || isGiftPage)
             {
