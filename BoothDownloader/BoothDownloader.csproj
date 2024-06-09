@@ -41,7 +41,6 @@
     <ItemGroup>
         <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
         <PackageReference Include="ShellProgressBar" Version="5.2.0" />
-		<PackageReference Include="Squid-Box.SevenZipSharp" Version="1.6.2.24" />
         <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
     </ItemGroup>
 
