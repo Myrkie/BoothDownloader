@@ -1,3 +1,5 @@
+using BoothDownloader.Miscellaneous;
+
 namespace BoothDownloader.Web;
 
 public class BoothOrders
@@ -15,7 +17,6 @@ public class BoothOrders
             isDone = IsDone;
             pageNumber++;
         }
-        allItems.RemoveAll(s => string.IsNullOrWhiteSpace(s.Id));
 
         return allItems;
     }
@@ -30,29 +31,24 @@ public class BoothOrders
         try
         {
             string content = await response.Content.ReadAsStringAsync(cancellationToken);
-            content = content.Replace("<", "\r\n<");
-            string[] sheet = content.Split("<div class=\"sheet");
             if (!content.Contains("<div class=\"sheet"))
             {
                 return (items, true);
             }
-            foreach (string itemsheet in sheet)
+
+            string[] splitByItem = content.Split("<div class=\"sheet");
+
+            foreach (string itemHtml in splitByItem)
             {
-                BoothItem item = new();
-                StringReader reader = new(itemsheet);
-                string? line;
-                while ((line = reader.ReadLine()) != null)
-                {
-                    if (line?.Contains("<a href=\"https://booth.pm/en/items/") == true)
-                        item.Id = line.Split('/').Last().Split("\"").First();
-                }
-                items.Add(item);
+                var itemMatch = RegexStore.ItemRegex.Match(itemHtml);
+                if (itemMatch.Success)
+                    items.Add(new BoothItem { Id = itemMatch.Groups[1].Value });
             }
             return (items, false);
         }
         catch (Exception exception)
         {
-            Console.WriteLine($"exception at method OrdersParse {exception}");
+            Console.WriteLine($"exception at method OrdersParseAsync {exception}");
             throw;
         }
     }

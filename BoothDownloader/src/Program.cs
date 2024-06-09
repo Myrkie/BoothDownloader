@@ -4,7 +4,6 @@ using System.CommandLine.Builder;
 using System.CommandLine.Parsing;
 using System.IO.Compression;
 using System.Text;
-using System.Text.RegularExpressions;
 using BoothDownloader.Configuration;
 using BoothDownloader.Miscellaneous;
 using BoothDownloader.Web;
@@ -12,26 +11,10 @@ using ShellProgressBar;
 
 namespace BoothDownloader;
 
-internal static partial class BoothDownloader
+internal static class BoothDownloader
 {
 
     internal static JsonConfig? Configextern;
-
-    private static readonly Regex ImageRegex = GetImageRegex();
-
-    private static readonly Regex ImageGifRegex = GetImageGifRegex();
-
-    private static readonly Regex IdRegex = GetIdRegex();
-
-    private static readonly Regex GuidRegex = GetGuidRegex();
-
-    private static readonly Regex ItemRegex = GetItemRegex();
-
-    private static readonly Regex DownloadRegex = GetDownloadRegex();
-
-    private static readonly Regex DownloadNameRegex = GetDownloadNameRegex();
-
-    private static readonly Regex OrdersRegex = GetOrdersRegex();
 
     private static async Task<int> Main(string[] args)
     {
@@ -140,10 +123,44 @@ internal static partial class BoothDownloader
             else if (boothId?.Equals("https://accounts.booth.pm/library", StringComparison.OrdinalIgnoreCase) == true || boothId?.Equals("libraries", StringComparison.OrdinalIgnoreCase) == true || boothId?.Equals("library", StringComparison.OrdinalIgnoreCase) == true)
             {
 
+                if (hasValidCookie)
+                {
+                    Console.WriteLine("Downloading all Paid Library Items!\n");
+                    var list = await BoothLibrary.LibraryLoopAsync(false, cancellationToken);
+                    Console.WriteLine($"Library Items to download: {list.Count}\nthis may be more than expected as this doesnt account for invalid or deleted items\n");
+
+                    foreach (var items in list)
+                    {
+                        Console.WriteLine($"Downloading {items.Id}\n");
+                        await MainParsingAsync(items.Id, outputDirectory, idFromArgument, config, client, hasValidCookie, maxRetries, cancellationToken);
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("Cannot download paid library items with invalid cookie.\n");
+                    await Task.Delay(1500, cancellationToken);
+                }
             }
             else if (boothId?.Equals("https://accounts.booth.pm/library/gifts", StringComparison.OrdinalIgnoreCase) == true || boothId?.Equals("gifts", StringComparison.OrdinalIgnoreCase) == true || boothId?.Equals("gift", StringComparison.OrdinalIgnoreCase) == true)
             {
 
+                if (hasValidCookie)
+                {
+                    Console.WriteLine("Downloading all Paid Gifts!\n");
+                    var list = await BoothLibrary.LibraryLoopAsync(true, cancellationToken);
+                    Console.WriteLine($"Gifts to download: {list.Count}\nthis may be more than expected as this doesnt account for invalid or deleted items\n");
+
+                    foreach (var items in list)
+                    {
+                        Console.WriteLine($"Downloading {items.Id}\n");
+                        await MainParsingAsync(items.Id, outputDirectory, idFromArgument, config, client, hasValidCookie, maxRetries, cancellationToken);
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("Cannot download paid gifts with invalid cookie.\n");
+                    await Task.Delay(1500, cancellationToken);
+                }
             }
             else
             {
@@ -160,7 +177,7 @@ internal static partial class BoothDownloader
     {
         #region Prep Booth ID
 
-        boothId = IdRegex.Match(boothId!)
+        boothId = RegexStore.IdRegex.Match(boothId!)
             .Value;
 
         #endregion
@@ -208,26 +225,26 @@ internal static partial class BoothDownloader
         }
 
 
-        var imageCollection = ImageRegex.Matches(html)
+        var imageCollection = RegexStore.ImageRegex.Matches(html)
             .Select(match => match.Value)
             .Where(url =>
                 // We only care for Resized Images to reduce download time and disk space
-                GuidRegex.Match(url)
+                RegexStore.GuidRegex.Match(url)
                     .ToString()
                     .Split('/')
                     .Last()
                     .Contains("base_resized")
             ).ToArray();
-        var gifCollection = ImageGifRegex.Matches(html)
+        var gifCollection = RegexStore.ImageGifRegex.Matches(html)
             .Select(match => match.Value)
             .ToArray();
         var downloadCollection = hasValidCookie
-            ? DownloadRegex.Matches(html)
+            ? RegexStore.DownloadRegex.Matches(html)
                 .Select(match => match.Value)
                 .ToArray()
             : [];
         var ordersCollection = hasValidCookie
-            ? OrdersRegex.Matches(html)
+            ? RegexStore.OrdersRegex.Matches(html)
                 .Select(match => match.Value)
                 .ToArray()
             : [];
@@ -255,10 +272,10 @@ internal static partial class BoothDownloader
 
                     foreach (var itemHtml in splitByItem)
                     {
-                        var itemMatch = ItemRegex.Match(itemHtml);
+                        var itemMatch = RegexStore.ItemRegex.Match(itemHtml);
 
                         if (itemMatch.Groups[1].Value != boothId) continue;
-                        foreach (var downloadUrl in DownloadRegex.Matches(itemHtml)
+                        foreach (var downloadUrl in RegexStore.DownloadRegex.Matches(itemHtml)
                                      .Select(match => match.Value))
                         {
                             downloadBag.Add(downloadUrl);
@@ -316,7 +333,7 @@ internal static partial class BoothDownloader
         var imageTaskBar = progressBar.Spawn(imageCollection.Length, imageTaskMessage, parentOptions);
         var imageTasks = imageCollection.Select(url => Task.Run(async () =>
         {
-            var filename = GuidRegex.Match(url).ToString().Split('/').Last();
+            var filename = RegexStore.GuidRegex.Match(url).ToString().Split('/').Last();
 
             string uniqueFilename;
             lock (entryDirFiles)
@@ -342,7 +359,7 @@ internal static partial class BoothDownloader
         var gifTaskBar = progressBar.Spawn(gifCollection.Length, gifTaskMessage, parentOptions);
         var gifTasks = gifCollection.Select(url => Task.Run(async () =>
         {
-            var filename = GuidRegex.Match(url).ToString().Split('/').Last();
+            var filename = RegexStore.GuidRegex.Match(url).ToString().Split('/').Last();
 
             string uniqueFilename;
             lock (entryDirFiles)
@@ -372,7 +389,7 @@ internal static partial class BoothDownloader
             var httpClient = client.MakeHttpClient();
             var resp = await httpClient.GetAsync(url, cancellationToken);
             var redirectUrl = resp.Headers.Location!.ToString();
-            var filename = DownloadNameRegex.Match(redirectUrl).Groups[1].Value;
+            var filename = RegexStore.DownloadNameRegex.Match(redirectUrl).Groups[1].Value;
 
             string uniqueFilename;
             lock (binaryDirFiles)
@@ -473,28 +490,4 @@ internal static partial class BoothDownloader
 
         #endregion
     }
-
-    [GeneratedRegex(@"https\:\/\/booth\.pximg\.net\/[a-f0-9-]{0,}\/i\/[0-9]{0,}\/[a-zA-Z0-9\-_]{0,}\.(jpg|png)", RegexOptions.Compiled)]
-    private static partial Regex GetImageRegex();
-
-    [GeneratedRegex(@"https\:\/\/booth\.pximg\.net\/[a-f0-9-]{0,}\/i\/[0-9]{0,}\/[a-zA-Z0-9\-_]{0,}\.(gif)", RegexOptions.Compiled)]
-    private static partial Regex GetImageGifRegex();
-
-    [GeneratedRegex(@"[^/]+(?=/$|$)", RegexOptions.Compiled)]
-    private static partial Regex GetIdRegex();
-
-    [GeneratedRegex(@"[a-f0-9-]{0,}\/i\/[0-9]{0,}\/[a-zA-Z0-9\-_]{0,}\.(png|jpg|gif)", RegexOptions.Compiled)]
-    private static partial Regex GetGuidRegex();
-
-    [GeneratedRegex(@"booth\.pm\/items\/(\d+)", RegexOptions.Compiled)]
-    private static partial Regex GetItemRegex();
-
-    [GeneratedRegex(@"https\:\/\/booth\.pm\/downloadables\/[0-9]{0,}", RegexOptions.Compiled)]
-    private static partial Regex GetDownloadRegex();
-
-    [GeneratedRegex(@".*\/(.*)\?", RegexOptions.Compiled)]
-    private static partial Regex GetDownloadNameRegex();
-
-    [GeneratedRegex(@"https\:\/\/accounts\.booth\.pm\/orders\/[0-9]{0,}", RegexOptions.Compiled)]
-    private static partial Regex GetOrdersRegex();
 }
