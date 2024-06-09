@@ -7,14 +7,8 @@ public class BoothClient
 {
     private const string UrlAccountSettings = "https://accounts.booth.pm/settings";
     private const string UrlItemPage = "https://booth.pm/en/items";
-    private Config Config { get; }
 
     private static readonly HttpClientHandler HttpHandler = new() { AllowAutoRedirect = false };
-
-    public BoothClient(Config config)
-    {
-        Config = config;
-    }
 
     public class DownloadFailedException : Exception
     {
@@ -25,7 +19,7 @@ public class BoothClient
     {
         var httpClient = new HttpClient(HttpHandler);
 
-        httpClient.DefaultRequestHeaders.Add("Cookie", $"adult=t; _plaza_session_nktz7u={Config.Cookie}");
+        httpClient.DefaultRequestHeaders.Add("Cookie", $"adult=t; _plaza_session_nktz7u={BoothConfig.Instance.Cookie}");
 
         return httpClient;
     }

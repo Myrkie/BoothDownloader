@@ -13,9 +13,6 @@ namespace BoothDownloader;
 
 internal static class BoothDownloader
 {
-
-    internal static JsonConfig? ConfigExtern;
-
     private static async Task<int> Main(string[] args)
     {
         Console.Title = $"BoothDownloader - V{typeof(BoothDownloader).Assembly.GetName().Version}";
@@ -54,18 +51,16 @@ internal static class BoothDownloader
 
         rootCommand.SetHandler(async (configFile, boothId, outputDirectory, maxRetries, cancellationToken) =>
         {
-            var config = new JsonConfig(configFile);
-            ConfigExtern = config;
+            BoothConfig.Setup(configFile);
 
             #region First Boot
 
-            if (config.Config.FirstBoot)
+            if (BoothConfig.Instance.Cookie == null)
             {
                 Console.WriteLine("Please paste in your cookie from browser.\n");
                 var cookie = Console.ReadLine();
-                config.Config.Cookie = cookie!;
-                config.Config.FirstBoot = false;
-                config.Save();
+                BoothConfig.Instance.Cookie = cookie ?? string.Empty;
+                BoothConfig.ConfigInstance.Save();
                 Console.WriteLine("Cookie set!\n");
             }
 
@@ -82,7 +77,7 @@ internal static class BoothDownloader
 
             #region Prep Booth Client
 
-            var client = new BoothClient(config.Config);
+            var client = new BoothClient();
             var hasValidCookie = await client.IsCookieValidAsync(cancellationToken);
 
             if (hasValidCookie)
@@ -94,17 +89,11 @@ internal static class BoothDownloader
                 Console.WriteLine(
                     "Cookie is not valid file downloads will not function!\nImage downloads will still function\nUpdate your cookie in the config file.\n"
                 );
-                config.Config.Cookie = "";
-                config.Save();
+                BoothConfig.Instance.Cookie = "";
+                BoothConfig.ConfigInstance.Save();
             }
 
             #endregion
-
-            bool isOrdersPage = boothId?.Equals("https://accounts.booth.pm/orders", StringComparison.OrdinalIgnoreCase) == true
-            || boothId?.Equals("orders", StringComparison.OrdinalIgnoreCase) == true
-            || boothId?.Equals("order", StringComparison.OrdinalIgnoreCase) == true
-            || boothId?.Equals("purchase", StringComparison.OrdinalIgnoreCase) == true
-            || boothId?.Equals("purchases", StringComparison.OrdinalIgnoreCase) == true;
 
             bool isLibraryPage = boothId?.Equals("https://accounts.booth.pm/library", StringComparison.OrdinalIgnoreCase) == true
             || boothId?.Equals("library", StringComparison.OrdinalIgnoreCase) == true
@@ -114,22 +103,39 @@ internal static class BoothDownloader
             || boothId?.Equals("gift", StringComparison.OrdinalIgnoreCase) == true
             || boothId?.Equals("gifts", StringComparison.OrdinalIgnoreCase) == true;
 
-            if(isOrdersPage || isLibraryPage || isGiftPage)
+
+            bool isOrdersPage = boothId?.Equals("https://accounts.booth.pm/orders", StringComparison.OrdinalIgnoreCase) == true
+            || boothId?.Equals("orders", StringComparison.OrdinalIgnoreCase) == true
+            || boothId?.Equals("order", StringComparison.OrdinalIgnoreCase) == true
+            || boothId?.Equals("purchase", StringComparison.OrdinalIgnoreCase) == true
+            || boothId?.Equals("purchases", StringComparison.OrdinalIgnoreCase) == true;
+
+            if(isOrdersPage)
             {
-                string itemTypeName = isOrdersPage ? "Orders" : isLibraryPage ? "Library" : isGiftPage ? "Gifts" : "UNKNOWN";
-                string pagePath = isOrdersPage ? "orders" : isLibraryPage ? "library" : isGiftPage ? "library/gifts" : string.Empty;
-                string seperator = isOrdersPage ? "<div class=\"sheet" : isLibraryPage || isGiftPage ? "<div class=\"mb-16 " : string.Empty;
+                Console.WriteLine("Orders Page now uses Library!");
+                isLibraryPage = true;
+            }
+
+            if (isLibraryPage || isGiftPage)
+            {
+                if(isOrdersPage)
+                {
+                    Console.WriteLine("Orders Page now uses Library!");
+                }
+
+                string itemTypeName =  isLibraryPage ? "Library" : isGiftPage ? "Gifts" : "UNKNOWN";
+                string pagePath = isLibraryPage ? "library" : isGiftPage ? "library/gifts" : string.Empty;
 
                 if (hasValidCookie)
                 {
                     Console.WriteLine($"Downloading all Paid {itemTypeName}!\n");
-                    var list = await BoothPageParser.ParserLoopAsync(pagePath, seperator, cancellationToken);
-                    Console.WriteLine($"{itemTypeName} to download: {list.Count}\nthis may be more than expected as this doesnt account for invalid or deleted items\n");
+                    var list = await BoothPageParser.ParserLoopAsync(pagePath, cancellationToken);
+                    Console.WriteLine($"{itemTypeName} to download: {list.Count}\nThis may be more than expected as this doesnt account for invalid or deleted items\n");
 
                     foreach (var items in list)
                     {
                         Console.WriteLine($"Downloading {items.Id}\n");
-                        await MainParsingAsync(items.Id, outputDirectory, idFromArgument, config, client, hasValidCookie, maxRetries, cancellationToken);
+                        await MainParsingAsync(items.Id, outputDirectory, idFromArgument, client, hasValidCookie, maxRetries, cancellationToken);
                     }
                 }
                 else
@@ -140,7 +146,7 @@ internal static class BoothDownloader
             }
             else
             {
-                await MainParsingAsync(boothId, outputDirectory, idFromArgument, config, client, hasValidCookie, maxRetries, cancellationToken);
+                await MainParsingAsync(boothId, outputDirectory, idFromArgument, client, hasValidCookie, maxRetries, cancellationToken);
             }
         }, configOption, boothOption, outputDirectoryOption, maxRetriesOption, cancellationTokenValueSource);
 
@@ -149,7 +155,7 @@ internal static class BoothDownloader
         return await built.InvokeAsync(args);
     }
 
-    private static async Task MainParsingAsync(string? boothId, string outputDirectory, bool idFromArgument, JsonConfig config, BoothClient client, bool hasValidCookie, int maxRetries, CancellationToken cancellationToken = default)
+    private static async Task MainParsingAsync(string? boothId, string outputDirectory, bool idFromArgument, BoothClient client, bool hasValidCookie, int maxRetries, CancellationToken cancellationToken = default)
     {
         #region Prep Booth ID
 
@@ -435,7 +441,7 @@ internal static class BoothDownloader
 
         #region Compression
 
-        if (config.Config.AutoZip)
+        if (BoothConfig.Instance.AutoZip)
         {
 
             progressBar.Dispose();
@@ -458,7 +464,7 @@ internal static class BoothDownloader
 
         Console.WriteLine("Done!");
 
-        if (idFromArgument && config.Config.AutoZip)
+        if (idFromArgument && BoothConfig.Instance.AutoZip)
         {
             // used for standard output redirection for path to zip file with another process
             Console.WriteLine("ENVFilePATH: " + entryDir + ".zip");

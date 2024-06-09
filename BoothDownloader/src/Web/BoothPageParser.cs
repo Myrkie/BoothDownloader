@@ -4,7 +4,9 @@ namespace BoothDownloader.Web;
 
 public class BoothPageParser
 {
-    public static async Task<List<BoothItem>> ParserLoopAsync(string path, string seperator, CancellationToken cancellationToken = default)
+    private const string _seperator = "<div class=\"mb-16 ";
+
+    public static async Task<List<BoothItem>> ParserLoopAsync(string path, CancellationToken cancellationToken = default)
     {
         List<BoothItem> allItems = [];
 
@@ -12,7 +14,7 @@ public class BoothPageParser
         bool isDone = false;
         while (!isDone)
         {
-            var (Items, IsDone) = await LibraryParseAsync(path, seperator, pageNumber, cancellationToken);
+            var (Items, IsDone) = await LibraryParseAsync(path, pageNumber, cancellationToken);
             allItems.AddRange(Items);
             isDone = IsDone;
             pageNumber++;
@@ -21,10 +23,10 @@ public class BoothPageParser
         return allItems;
     }
 
-    private static async Task<(List<BoothItem> Items, bool IsDone)> LibraryParseAsync(string path, string seperator, int pageNumber, CancellationToken cancellationToken = default)
+    private static async Task<(List<BoothItem> Items, bool IsDone)> LibraryParseAsync(string path, int pageNumber, CancellationToken cancellationToken = default)
     {
         List<BoothItem> items = [];
-        var boothclient = new BoothClient(BoothDownloader.ConfigExtern!.Config);
+        var boothclient = new BoothClient();
         var client = boothclient.MakeHttpClient();
         string url = $"https://accounts.booth.pm/{path}?page={pageNumber}";
         HttpResponseMessage? response = await client.GetAsync(url, cancellationToken);
@@ -32,12 +34,12 @@ public class BoothPageParser
         {
             string content = await response.Content.ReadAsStringAsync(cancellationToken);
 
-            if (!content.Contains(seperator))
+            if (!content.Contains(_seperator))
             {
                 return (items, true);
             }
             // Class separates the next item in the order list
-            var splitByItem = content.Split(seperator);
+            var splitByItem = content.Split(_seperator);
 
             foreach (var itemHtml in splitByItem)
             {
