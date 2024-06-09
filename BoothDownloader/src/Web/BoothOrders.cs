@@ -2,17 +2,17 @@ namespace BoothDownloader.Web;
 
 public class BoothOrders
 {
-    private static bool _done;
-
     public static async Task<List<BoothItem>> OrdersLoopAsync(CancellationToken cancellationToken = default)
     {
         List<BoothItem> allItems = [];
 
         int pageNumber = 1;
-        while (!_done)
+        bool isDone = false;
+        while (!isDone)
         {
-            List<BoothItem>? items = await OrdersParseAsync(pageNumber, cancellationToken);
-            allItems.AddRange(items);
+            var (Items, IsDone) = await OrdersParseAsync(pageNumber, cancellationToken);
+            allItems.AddRange(Items);
+            isDone = IsDone;
             pageNumber++;
         }
         allItems.RemoveAll(s => string.IsNullOrWhiteSpace(s.Id));
@@ -20,7 +20,7 @@ public class BoothOrders
         return allItems;
     }
 
-    private static async Task<List<BoothItem>> OrdersParseAsync(int pageNumber, CancellationToken cancellationToken = default)
+    private static async Task<(List<BoothItem> Items, bool IsDone)> OrdersParseAsync(int pageNumber, CancellationToken cancellationToken = default)
     {
         List<BoothItem> items = [];
         var boothclient = new BoothClient(BoothDownloader.Configextern.Config);
@@ -34,8 +34,7 @@ public class BoothOrders
             string[] sheet = content.Split("<div class=\"sheet");
             if (!content.Contains("<div class=\"sheet"))
             {
-                _done = true;
-                return items;
+                return (items, true);
             }
             foreach (string itemsheet in sheet)
             {
@@ -49,7 +48,7 @@ public class BoothOrders
                 }
                 items.Add(item);
             }
-            return items;
+            return (items, false);
         }
         catch (Exception exception)
         {
