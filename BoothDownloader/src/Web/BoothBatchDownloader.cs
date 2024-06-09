@@ -107,7 +107,6 @@ namespace BoothDownloader.Web
                     {
                         try
                         {
-                            child.Message = uniqueFilename;
                             await Utils.DownloadFileAsync(redirectUrl, Path.Combine(binaryDir.ToString(), uniqueFilename), childProgress, cancellationToken);
                             Interlocked.Decrement(ref remainingDownloads);
                             downloadTaskBar.Message = $"Downloads ({remainingDownloads}/{boothItem.Value.Downloadables.Count} Left)";
@@ -130,9 +129,8 @@ namespace BoothDownloader.Web
 
                     if (success) return;
 
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    child.Message = $"Failed to download {url} after {maxRetries} attempts.";
-                    Console.ResetColor();
+                    progressBar.WriteErrorLine($"Failed to download {url} after {maxRetries} attempts.");
+                    downloadTaskBar.Message = $"Downloads ({remainingDownloads}/{boothItem.Value.Downloadables.Count} Left)";
                 })).ToArray();
 
                 if (boothItem.Value.Downloadables.Count == 0)
