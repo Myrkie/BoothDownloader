@@ -16,12 +16,16 @@ internal static class BoothDownloader
         Console.Title = $"BoothDownloader - V{typeof(BoothDownloader).Assembly.GetName().Version}";
         LoggerHelper.GlobalLogger.LogInformation("Booth Downloader - V{Version}", typeof(BoothDownloader).Assembly.GetName().Version);
 
+        Environment.CurrentDirectory = AppContext.BaseDirectory;
+
+        args = BoothDownloaderProtocol.HandleProtocol(args);
+
         var rootCommand = new RootCommand("Booth Downloader");
 
         var configOption = new Option<string>(
             name: "--config",
             description: "Path to configuration file",
-            getDefaultValue: () => "./BDConfig.json"
+            getDefaultValue: () => BoothConfig.DefaultPath
         );
 
         var boothOption = new Option<string?>(
@@ -43,7 +47,19 @@ internal static class BoothDownloader
 
         var debugOption = new Option<bool>(
             name: "--debug",
-            description: "Whether or not to create debug files",
+            description: "Run in debug mode",
+            getDefaultValue: () => false
+        );
+
+        var registerOption = new Option<bool>(
+            name: "--register",
+            description: "Register the booth downloader protocol. Application will close after completed.",
+            getDefaultValue: () => false
+        );
+
+        var unregisterOption = new Option<bool>(
+            name: "--unregister",
+            description: "Unregister the booth downloader protocol. Application will close after completed.",
             getDefaultValue: () => false
         );
 
@@ -51,11 +67,31 @@ internal static class BoothDownloader
         rootCommand.AddOption(boothOption);
         rootCommand.AddOption(outputDirectoryOption);
         rootCommand.AddOption(maxRetriesOption);
+        rootCommand.AddOption(debugOption);
+        rootCommand.AddOption(registerOption);
+        rootCommand.AddOption(unregisterOption);
 
         var cancellationTokenValueSource = new CancellationTokenValueSource();
 
-        rootCommand.SetHandler(async (configFile, boothInput, outputDirectory, maxRetries, debug, cancellationToken) =>
+        rootCommand.SetHandler(async (registerProtocol, unregisterProtocol, configFile, boothInput, outputDirectory, maxRetries, debug, cancellationToken) =>
         {
+            if (debug)
+            {
+                LoggerHelper.GlobalLogger.LogInformation("Arguements:\n{args}", string.Join('\n', args));
+            }
+
+            if (registerProtocol)
+            {
+                BoothDownloaderProtocol.RegisterContext();
+                return;
+            }
+
+            if (unregisterProtocol)
+            {
+                BoothDownloaderProtocol.UnregisterContext();
+                return;
+            }
+
             BoothConfig.Setup(configFile);
 
             #region First Boot
@@ -82,7 +118,7 @@ internal static class BoothDownloader
 
             #endregion
 
-            var commands = boothInput?.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? Array.Empty<string>();
+            var commands = boothInput?.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? [];
             var isLibraryPage = false;
             var isGiftPage = false;
             var boothIds = new List<string>();
@@ -160,7 +196,7 @@ internal static class BoothDownloader
                 }
             }
             
-            if (boothIds.Any())
+            if (boothIds.Count > 0)
             {
                 LoggerHelper.GlobalLogger.LogInformation("Grabbing the following booth Ids: {boothIds}", string.Join(';', boothIds));
 
@@ -175,7 +211,7 @@ internal static class BoothDownloader
             {
                 LoggerHelper.GlobalLogger.LogInformation("No items found to download.");
             }
-        }, configOption, boothOption, outputDirectoryOption, maxRetriesOption, debugOption, cancellationTokenValueSource);
+        }, registerOption, unregisterOption, configOption, boothOption, outputDirectoryOption, maxRetriesOption, debugOption, cancellationTokenValueSource);
 
         var commandLineBuilder = new CommandLineBuilder(rootCommand);
         var built = commandLineBuilder.Build();

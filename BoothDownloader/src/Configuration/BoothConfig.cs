@@ -4,6 +4,8 @@ namespace BoothDownloader.Configuration;
 
 public class BoothConfig
 {
+    public const string DefaultPath = "./BDConfig.json";
+
     public static void Setup(string path)
     {
         ConfigInstance = new Config<BoothConfig>(path);
