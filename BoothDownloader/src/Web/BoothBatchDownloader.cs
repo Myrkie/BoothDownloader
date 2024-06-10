@@ -120,10 +120,6 @@ namespace BoothDownloader.Web
                                 await Task.Delay(5000, cancellationToken);
                             }
                         }
-                        if (retryCount < maxRetries)
-                        {
-                            success = false;
-                        }
 
                         downloadTaskBar.Tick();
                         progressBar.Tick();
