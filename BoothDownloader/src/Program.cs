@@ -23,7 +23,7 @@ internal static class BoothDownloader
 
         var boothOption = new Option<string?>(
             name: "--booth",
-            description: "Booth IDs/URLs"
+            description: "Booth IDs/URLs/Collections"
         );
 
         var outputDirectoryOption = new Option<string>(
@@ -51,7 +51,7 @@ internal static class BoothDownloader
 
         var cancellationTokenValueSource = new CancellationTokenValueSource();
 
-        rootCommand.SetHandler(async (configFile, boothId, outputDirectory, maxRetries, debug, cancellationToken) =>
+        rootCommand.SetHandler(async (configFile, boothInput, outputDirectory, maxRetries, debug, cancellationToken) =>
         {
             BoothConfig.Setup(configFile);
 
@@ -68,10 +68,11 @@ internal static class BoothDownloader
 
             #endregion
 
-            if (string.IsNullOrEmpty(boothId))
+            if (string.IsNullOrEmpty(boothInput))
             {
-                Console.WriteLine("Enter the Booth ID or URL: ");
-                boothId = Console.ReadLine();
+                Console.WriteLine("Enter the Booth ID or URL\nOr one fo the following collections: owned, library, gifts");
+                Console.Write("> ");
+                boothInput = Console.ReadLine();
             }
 
             #region Prep Booth Client
@@ -79,30 +80,58 @@ internal static class BoothDownloader
 
             #endregion
 
-            bool isLibraryPage = boothId?.Equals("https://accounts.booth.pm/library", StringComparison.OrdinalIgnoreCase) == true
-                              || boothId?.Equals("library", StringComparison.OrdinalIgnoreCase) == true
-                              || boothId?.Equals("libraries", StringComparison.OrdinalIgnoreCase) == true;
+            var commands = boothInput?.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? Array.Empty<string>();
+            var isLibraryPage = false;
+            var isGiftPage = false;
+            var boothIds = new List<string>();
 
-            bool isGiftPage = boothId?.Equals("https://accounts.booth.pm/library/gifts", StringComparison.OrdinalIgnoreCase) == true
-                           || boothId?.Equals("gift", StringComparison.OrdinalIgnoreCase) == true
-                           || boothId?.Equals("gifts", StringComparison.OrdinalIgnoreCase) == true;
-
-            if (boothId?.Equals("https://accounts.booth.pm/orders", StringComparison.OrdinalIgnoreCase) == true
-            || boothId?.Equals("orders", StringComparison.OrdinalIgnoreCase) == true
-            || boothId?.Equals("order", StringComparison.OrdinalIgnoreCase) == true
-            || boothId?.Equals("purchase", StringComparison.OrdinalIgnoreCase) == true
-            || boothId?.Equals("purchases", StringComparison.OrdinalIgnoreCase) == true)
+            if(commands != null && commands.Length > 0)
             {
-                Console.WriteLine("Orders Page now uses Library!");
-                isLibraryPage = true;
-            }
+                foreach (var command in commands)
+                {
+                    if (string.IsNullOrWhiteSpace(command))
+                    {
+                        continue;
+                    }
+                    else if (command.Equals("https://accounts.booth.pm/library", StringComparison.OrdinalIgnoreCase) == true
+                     || command.Equals("library", StringComparison.OrdinalIgnoreCase) == true
+                     || command.Equals("libraries", StringComparison.OrdinalIgnoreCase) == true)
+                    {
+                        isLibraryPage = true;
+                    }
+                    else if (command.Equals("https://accounts.booth.pm/library/gifts", StringComparison.OrdinalIgnoreCase) == true
+                          || command.Equals("gift", StringComparison.OrdinalIgnoreCase) == true
+                          || command.Equals("gifts", StringComparison.OrdinalIgnoreCase) == true)
+                    {
+                        isGiftPage = true;
+                    }
+                    else if (command.Equals("https://accounts.booth.pm/orders", StringComparison.OrdinalIgnoreCase) == true
+                          || command.Equals("orders", StringComparison.OrdinalIgnoreCase) == true
+                          || command.Equals("order", StringComparison.OrdinalIgnoreCase) == true
+                          || command.Equals("purchase", StringComparison.OrdinalIgnoreCase) == true
+                          || command.Equals("purchases", StringComparison.OrdinalIgnoreCase) == true)
+                    {
+                        Console.WriteLine("Orders Page now uses Library!");
+                        isLibraryPage = true;
+                    }
+                    else if (command.Equals("own", StringComparison.OrdinalIgnoreCase) == true
+                          || command.Equals("owned", StringComparison.OrdinalIgnoreCase) == true)
+                    {
+                        isLibraryPage = true;
+                        isGiftPage = true;
+                    }
+                    else
+                    {
+                        var boothId = RegexStore.IdRegex.Matches(command).Select(x => x.Groups[1].Value).Distinct();
+                        if (!boothId.Any())
+                        {
+                            Console.WriteLine("Could not parse booth IDs, assuming provided value is ID");
+                            boothId = [command];
+                        }
 
-            if (boothId?.Equals("own", StringComparison.OrdinalIgnoreCase) == true
-            || boothId?.Equals("owned", StringComparison.OrdinalIgnoreCase) == true)
-            {
-                Console.WriteLine("Going to grab both Library Items and Gifts!");
-                isLibraryPage = true;
-                isGiftPage = true;
+                        boothIds.AddRange(boothId);
+                    }
+                }
             }
 
             Dictionary<string, BoothItemAssets> items = [];
@@ -128,15 +157,9 @@ internal static class BoothDownloader
                     }
                 }
             }
-            else
+            
+            if (boothIds.Any())
             {
-                var boothIds = RegexStore.IdRegex.Matches(boothId!).Select(x => x.Groups[1].Value).Distinct();
-                if (!boothIds.Any())
-                {
-                    Console.WriteLine("Could not parse booth IDs, assuming provided value is ID");
-                    boothIds = [boothId!];
-                }
-
                 Console.WriteLine($"Grabbing the following booth Ids: {string.Join(';', boothIds)}\n");
 
                 items = await BoothPageParser.GetItemsAsync(boothIds, items, cancellationToken: cancellationToken);
