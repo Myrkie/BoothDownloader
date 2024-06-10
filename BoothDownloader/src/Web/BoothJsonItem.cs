@@ -1,22 +1,21 @@
 ﻿using Newtonsoft.Json;
 
-namespace BoothDownloader.src.Web
+namespace BoothDownloader.Web;
+
+public class BoothJsonItem
 {
-    public class BoothJsonItem
-    {
-        [JsonProperty("images")]
-        public List<Image>? Images { get; set; }
+    [JsonProperty("images")]
+    public List<Image>? Images { get; set; }
 
-        [JsonProperty("gift")]
-        public object? Gift { get; set; }
-    }
+    [JsonProperty("gift")]
+    public object? Gift { get; set; }
+}
 
-    public class Image
-    {
-        [JsonProperty("original")]
-        public string? Original { get; set; }
+public class Image
+{
+    [JsonProperty("original")]
+    public string? Original { get; set; }
 
-        [JsonProperty("resized")]
-        public string? Resized { get; set; }
-    }
+    [JsonProperty("resized")]
+    public string? Resized { get; set; }
 }

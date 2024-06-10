@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using BoothDownloader.Miscellaneous;
-using BoothDownloader.src.Web;
 using HtmlAgilityPack;
 using Newtonsoft.Json;
 using ShellProgressBar;
@@ -85,7 +84,7 @@ public class BoothPageParser
             using (var jsonProgressBar = new ProgressBar(remainingItems, $"Getting booth jsons ({remainingItems}/{itemsToGetJsonsOf.Count()} Left)", options))
             {
                 jsonProgressBar.WriteLine("Getting booth jsons");
-                if (itemsToGetJsonsOf.Count() == 0)
+                if (!itemsToGetJsonsOf.Any())
                 {
                     jsonProgressBar.Tick();
                 }
@@ -111,7 +110,7 @@ public class BoothPageParser
 
                                 var imageNodes = htmlDoc.DocumentNode.SelectNodes("//img[contains(@class, 'l-library-item-thumbnail')]");
 
-                                if (imageNodes?.Any() == true)
+                                if (imageNodes?.Count > 0)
                                 {
                                     foreach (var imageNode in imageNodes)
                                     {
@@ -148,14 +147,14 @@ public class BoothPageParser
     {
         Dictionary<string, BoothItemAssets> items = incomingItems ?? [];
 
-        if(!boothIds.Any())
+        if (!boothIds.Any())
         {
             return items;
         }
 
         foreach (var boothId in boothIds)
         {
-            if(!items.ContainsKey(boothId))
+            if (!items.ContainsKey(boothId))
             {
                 items.Add(boothId, new BoothItemAssets());
             }
@@ -226,7 +225,7 @@ public class BoothPageParser
 
         if (!orders.IsEmpty)
         {
-            int remainingOrders = orders.Count();
+            int remainingOrders = orders.Count;
             using (var progressBar = new ProgressBar(remainingOrders, $"Getting orders ({remainingOrders}/{orders.Count} Left)", options))
             {
                 await Task.WhenAll(orders.Select(order => Task.Run(async () =>
@@ -278,11 +277,11 @@ public class BoothPageParser
             Console.WriteLine();
         }
 
-        foreach (var download in downloads)
+        foreach (var (Id, Url) in downloads)
         {
-            if (!string.IsNullOrWhiteSpace(download.Url) && !items[download.Id].Downloadables.Contains(download.Url))
+            if (!string.IsNullOrWhiteSpace(Url) && !items[Id].Downloadables.Contains(Url))
             {
-                items[download.Id].Downloadables.Add(download.Url);
+                items[Id].Downloadables.Add(Url);
             }
         }
 
@@ -291,7 +290,7 @@ public class BoothPageParser
             Console.WriteLine("Gift item detected, going through gifts to get downloadables!\n");
             var giftItems = await BoothPageParser.GetPageItemsAsync("library/gifts", [], false, cancellationToken: cancellationToken);
 
-            foreach(var giftItem in giftItems)
+            foreach (var giftItem in giftItems)
             {
                 if (boothIds.Contains(giftItem.Key))
                 {
