@@ -80,6 +80,10 @@ internal static class BoothDownloader
 
             #endregion
 
+
+            bool isOwned = boothId?.Equals("own", StringComparison.OrdinalIgnoreCase) == true
+                          || boothId?.Equals("owned", StringComparison.OrdinalIgnoreCase) == true;
+
             bool isLibraryPage = boothId?.Equals("https://accounts.booth.pm/library", StringComparison.OrdinalIgnoreCase) == true
                               || boothId?.Equals("library", StringComparison.OrdinalIgnoreCase) == true
                               || boothId?.Equals("libraries", StringComparison.OrdinalIgnoreCase) == true;
@@ -98,26 +102,50 @@ internal static class BoothDownloader
                 isLibraryPage = true;
             }
 
-            if (isLibraryPage || isGiftPage)
+            if(boothId?.Equals("own", StringComparison.OrdinalIgnoreCase) == true
+            || boothId?.Equals("owned", StringComparison.OrdinalIgnoreCase) == true)
             {
-                string itemTypeName = isLibraryPage ? "Library Items" : isGiftPage ? "Gifts" : "UNKNOWN";
-                string pagePath = isLibraryPage ? "library" : isGiftPage ? "library/gifts" : string.Empty;
-
-                if (!BoothHttpClientManager.IsAnonymous)
-                {
-                    Console.WriteLine($"Grabbing all Paid {itemTypeName}!\n");
-                    var list = await BoothPageParser.GetPageItemsAsync(pagePath, cancellationToken);
-
-                    Console.WriteLine($"{itemTypeName} to download: {list.Count}\n");
-                    await BoothBatchDownloader.DownloadAsync(list, outputDirectory, maxRetries, cancellationToken);
-                }
-                else
-                {
-                    Console.WriteLine($"Cannot download Paid {itemTypeName} with invalid cookie.\n");
-                    await Task.Delay(1500, cancellationToken);
-                }
+                Console.WriteLine("Going to grab both Library Items and Gifts!");
+                isLibraryPage = true;
+                isGiftPage = true;
             }
-            else
+
+
+            if(isLibraryPage || isGiftPage)
+            {
+                Dictionary<string, BoothItemAssets> items = [];
+
+
+                if (isLibraryPage)
+                {
+                    if (!BoothHttpClientManager.IsAnonymous)
+                    {
+                        Console.WriteLine("Grabbing all Paid Library Items!\n");
+                        items = await BoothPageParser.GetPageItemsAsync("library", items, cancellationToken);
+                    }
+                    else
+                    {
+                        Console.WriteLine("Cannot download Paid Library Items with invalid cookie.\n");
+                        await Task.Delay(1500, cancellationToken);
+                    }
+                }
+
+                if (isGiftPage)
+                {
+                    if (!BoothHttpClientManager.IsAnonymous)
+                    {
+                        Console.WriteLine("Grabbing all Paid Gifts!\n");
+                        items = await BoothPageParser.GetPageItemsAsync("library/gifts", items, cancellationToken);
+                    }
+                    else
+                    {
+                        Console.WriteLine("Cannot download Paid Gifts with invalid cookie.\n");
+                        await Task.Delay(1500, cancellationToken);
+                    }
+                }
+
+                await BoothBatchDownloader.DownloadAsync(items, outputDirectory, maxRetries, cancellationToken);
+            }
             {
                 await MainParsingAsync(boothId, outputDirectory, idFromArgument, maxRetries, cancellationToken);
             }

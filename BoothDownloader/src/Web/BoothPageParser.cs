@@ -8,9 +8,9 @@ namespace BoothDownloader.Web;
 
 public class BoothPageParser
 {
-    public static async Task<Dictionary<string, BoothItemAssets>> GetPageItemsAsync(string path, CancellationToken cancellationToken = default)
+    public static async Task<Dictionary<string, BoothItemAssets>> GetPageItemsAsync(string path, Dictionary<string, BoothItemAssets>? incomingItems = null, CancellationToken cancellationToken = default)
     {
-        Dictionary<string, BoothItemAssets> items = [];
+        Dictionary<string, BoothItemAssets> items = incomingItems ?? [];
 
         int pageNumber = 1;
         var htmlDoc = new HtmlDocument();
@@ -77,13 +77,18 @@ public class BoothPageParser
 
         Console.WriteLine();
 
-        int remainingItems = items.Count;
-        using (var jsonProgressBar = new ProgressBar(remainingItems, $"Getting booth jsons ({remainingItems}/{items.Count} Left)", options))
+        var itemsToGetJsonsOf = items.Where(x => !x.Value.TriedToGetJson);
+        int remainingItems = itemsToGetJsonsOf.Count();
+        using (var jsonProgressBar = new ProgressBar(remainingItems, $"Getting booth jsons ({remainingItems}/{itemsToGetJsonsOf.Count()} Left)", options))
         {
             jsonProgressBar.WriteLine("Getting booth jsons");
-            if (items.Count > 0)
+            if(itemsToGetJsonsOf.Count() == 0)
             {
-                await Task.WhenAll(items.Select(item => Task.Run(async () =>
+                jsonProgressBar.Tick();
+            }
+            else
+            {
+                await Task.WhenAll(itemsToGetJsonsOf.Select(item => Task.Run(async () =>
                 {
                     try
                     {
@@ -144,6 +149,7 @@ public class BoothPageParser
                     }
                     finally
                     {
+                        items[item.Key].TriedToGetJson = true;
                         lock (jsonProgressBar)
                         {
                             jsonProgressBar.Tick();
