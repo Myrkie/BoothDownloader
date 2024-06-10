@@ -1,6 +1,8 @@
 using System.Collections.Concurrent;
 using BoothDownloader.Miscellaneous;
+using Discord.Common.Helpers;
 using HtmlAgilityPack;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using ShellProgressBar;
 
@@ -287,7 +289,7 @@ public class BoothPageParser
 
         if (hasAGiftedItem)
         {
-            Console.WriteLine("Gift item detected, going through gifts to get downloadables!\n");
+            LoggerHelper.GlobalLogger.LogInformation("Gift item detected when grabbing from item page, going through gifts to get downloadables.");
             var giftItems = await BoothPageParser.GetPageItemsAsync("library/gifts", [], false, cancellationToken: cancellationToken);
 
             foreach (var giftItem in giftItems)

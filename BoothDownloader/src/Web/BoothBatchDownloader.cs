@@ -2,6 +2,8 @@
 using System.IO.Compression;
 using BoothDownloader.Configuration;
 using BoothDownloader.Miscellaneous;
+using Discord.Common.Helpers;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using ShellProgressBar;
 
@@ -11,6 +13,7 @@ public static class BoothBatchDownloader
 {
     private const string BoothPageJson = "_BoothPage.json";
     private const string BoothInnerHtmlList = "_BoothInnerHtmlList.json";
+    private const string BatchDownloadDebug = "_Debug_BatchDownloadDebug.json";
 
     public static async Task DownloadAsync(Dictionary<string, BoothItemAssets> boothItems, string outputDirectory, int maxRetries, bool debug = false, CancellationToken cancellationToken = default)
     {
@@ -18,7 +21,7 @@ public static class BoothBatchDownloader
 
         if (debug)
         {
-            Console.WriteLine($"Writing _Debug_BatchDownloadDebug.json");
+            LoggerHelper.GlobalLogger.LogInformation("Writing {fileName}", BatchDownloadDebug);
             File.WriteAllText(Path.Combine(outputDir, "_Debug_BatchDownloadDebug.json"), JsonConvert.SerializeObject(boothItems, Formatting.Indented));
         }
 
@@ -29,14 +32,15 @@ public static class BoothBatchDownloader
         parentOptions.CollapseWhenFinished = false;
 
         var childOptions = BoothProgressBarOptions.Layer3;
+        parentOptions.CollapseWhenFinished = true;
 
         foreach (var boothItem in boothItems)
         {
-            Console.WriteLine($"Downloading {boothItem.Key}");
+            LoggerHelper.GlobalLogger.LogInformation("Downloading {boothId}", boothItem.Key);
 
             if (Directory.Exists(Path.Combine(outputDir, boothItem.Key)))
             {
-                Console.WriteLine("Directory already exists. Deleting...");
+                LoggerHelper.GlobalLogger.LogInformation("Directory already exists, deleting: {directoryName}", Path.Combine(outputDir, boothItem.Key));
                 Directory.Delete(Path.Combine(outputDir, boothItem.Key), true);
             }
 
@@ -47,12 +51,12 @@ public static class BoothBatchDownloader
 
             if (!string.IsNullOrWhiteSpace(boothItem.Value.BoothPageJson))
             {
-                Console.WriteLine($"Writing {BoothPageJson}...");
+                LoggerHelper.GlobalLogger.LogInformation("Writing {fileName}", BoothPageJson);
                 File.WriteAllText(Path.Combine(entryDir, BoothPageJson), boothItem.Value.BoothPageJson);
             }
             else if (boothItem.Value.InnerHtml.Count > 0)
             {
-                Console.WriteLine($"Writing {BoothInnerHtmlList}...");
+                LoggerHelper.GlobalLogger.LogInformation("Writing {fileName}", BoothInnerHtmlList);
                 File.WriteAllText(Path.Combine(entryDir, BoothInnerHtmlList), JsonConvert.SerializeObject(boothItem.Value.InnerHtml));
             }
 
@@ -143,28 +147,31 @@ public static class BoothBatchDownloader
 
                 var allTasks = imageTasks.Concat(downloadTasks).ToArray();
                 await Task.WhenAll(allTasks);
-
             }
+
+            Console.WriteLine();
 
             if (BoothConfig.Instance.AutoZip)
             {
-                if (File.Exists(entryDir + ".zip"))
+                var zipFileName = entryDir + ".zip";
+                if (File.Exists(zipFileName))
                 {
-                    Console.WriteLine("File already exists. Deleting...");
-                    File.Delete(entryDir + ".zip");
+                    LoggerHelper.GlobalLogger.LogInformation("File already exists, deleting: {fileName}", zipFileName);
+                    File.Delete(zipFileName);
                 }
 
-                Console.WriteLine("Zipping!");
-                ZipFile.CreateFromDirectory(entryDir, entryDir + ".zip");
-                Console.WriteLine("Zipped!");
+                LoggerHelper.GlobalLogger.LogInformation("Zipping");
+                ZipFile.CreateFromDirectory(entryDir, zipFileName);
+                LoggerHelper.GlobalLogger.LogInformation("Zipped");
+
 
                 Directory.Delete(entryDir, true);
 
-                Console.WriteLine("ENV-Completed-DL-Zip: " + entryDir + ".zip");
+                LoggerHelper.GlobalLogger.LogInformation("ENVFilePATH: {filePath}", zipFileName);
             }
             else
             {
-                Console.WriteLine("ENV-Completed-DL-Dir: " + entryDir);
+                LoggerHelper.GlobalLogger.LogInformation("ENVFileDIR: {directoryPath}", entryDir);
             }
         }
     }

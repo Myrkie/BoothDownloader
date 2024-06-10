@@ -1,5 +1,7 @@
 ﻿using System.Net;
 using BoothDownloader.Configuration;
+using Discord.Common.Helpers;
+using Microsoft.Extensions.Logging;
 
 namespace BoothDownloader.Web;
 
@@ -28,12 +30,12 @@ public static class BoothHttpClientManager
         var response = await httpClient.GetAsync(UrlAccountSettings, cancellationToken);
         if (response.StatusCode == HttpStatusCode.OK)
         {
-            Console.WriteLine("Cookie is valid! - Purchased file downloads will function.\n");
+            LoggerHelper.GlobalLogger.LogInformation("Cookie is valid! - Purchased file downloads will function.");
             HttpClient = httpClient;
         }
         else
         {
-            Console.WriteLine("Cookie is not valid file downloads will not function!\nImage downloads will still function\nUpdate your cookie in the config file.\n");
+            LoggerHelper.GlobalLogger.LogWarning("Cookie is not valid file downloads will not function! Image downloads will still function. Update your cookie in the config file.");
             BoothConfig.Instance.Cookie = string.Empty;
             BoothConfig.ConfigInstance.Save();
         }

@@ -4,6 +4,8 @@ using System.CommandLine.Parsing;
 using BoothDownloader.Configuration;
 using BoothDownloader.Miscellaneous;
 using BoothDownloader.Web;
+using Discord.Common.Helpers;
+using Microsoft.Extensions.Logging;
 
 namespace BoothDownloader;
 
@@ -12,6 +14,7 @@ internal static class BoothDownloader
     private static async Task<int> Main(string[] args)
     {
         Console.Title = $"BoothDownloader - V{typeof(BoothDownloader).Assembly.GetName().Version}";
+        LoggerHelper.GlobalLogger.LogInformation("Booth Downloader - V{Version}", typeof(BoothDownloader).Assembly.GetName().Version);
 
         var rootCommand = new RootCommand("Booth Downloader");
 
@@ -56,21 +59,20 @@ internal static class BoothDownloader
             BoothConfig.Setup(configFile);
 
             #region First Boot
-
             if (BoothConfig.Instance.Cookie == null)
             {
                 Console.WriteLine("Please paste in your cookie from browser.\n");
                 var cookie = Console.ReadLine();
                 BoothConfig.Instance.Cookie = cookie ?? string.Empty;
                 BoothConfig.ConfigInstance.Save();
-                Console.WriteLine("Cookie set!\n");
+                LoggerHelper.GlobalLogger.LogInformation("Cookie set");
             }
 
             #endregion
 
             if (string.IsNullOrEmpty(boothInput))
             {
-                Console.WriteLine("Enter the Booth ID or URL\nOr one fo the following collections: owned, library, gifts");
+                Console.WriteLine("Enter the Booth ID or URL\nOr one of the following collections: owned, library, gifts");
                 Console.Write("> ");
                 boothInput = Console.ReadLine();
             }
@@ -111,7 +113,7 @@ internal static class BoothDownloader
                           || command.Equals("purchase", StringComparison.OrdinalIgnoreCase) == true
                           || command.Equals("purchases", StringComparison.OrdinalIgnoreCase) == true)
                     {
-                        Console.WriteLine("Orders Page now uses Library!");
+                        LoggerHelper.GlobalLogger.LogInformation("Orders Page now uses Library!");
                         isLibraryPage = true;
                     }
                     else if (command.Equals("own", StringComparison.OrdinalIgnoreCase) == true
@@ -125,7 +127,7 @@ internal static class BoothDownloader
                         var boothId = RegexStore.IdRegex.Matches(command).Select(x => x.Groups[1].Value).Distinct();
                         if (!boothId.Any())
                         {
-                            Console.WriteLine("Could not parse booth IDs, assuming provided value is ID");
+                            LoggerHelper.GlobalLogger.LogWarning("Could not parse booth IDs, assuming provided value is ID");
                             boothId = [command];
                         }
 
@@ -140,19 +142,19 @@ internal static class BoothDownloader
             {
                 if (BoothHttpClientManager.IsAnonymous)
                 {
-                    Console.WriteLine("Cannot download Paid Items with invalid cookie.\n");
+                    LoggerHelper.GlobalLogger.LogError("Cannot download Paid Items with invalid cookie.");
                 }
                 else
                 {
                     if (isLibraryPage)
                     {
-                        Console.WriteLine("Grabbing all Paid Library Items!\n");
+                        LoggerHelper.GlobalLogger.LogInformation("Grabbing all Paid Library Items");
                         items = await BoothPageParser.GetPageItemsAsync("library", items, cancellationToken: cancellationToken);
                     }
 
                     if (isGiftPage)
                     {
-                        Console.WriteLine("Grabbing all Paid Gifts!\n");
+                        LoggerHelper.GlobalLogger.LogInformation("Grabbing all Paid Gifts");
                         items = await BoothPageParser.GetPageItemsAsync("library/gifts", items, cancellationToken: cancellationToken);
                     }
                 }
@@ -160,7 +162,7 @@ internal static class BoothDownloader
             
             if (boothIds.Any())
             {
-                Console.WriteLine($"Grabbing the following booth Ids: {string.Join(';', boothIds)}\n");
+                LoggerHelper.GlobalLogger.LogInformation("Grabbing the following booth Ids: {boothIds}", string.Join(';', boothIds));
 
                 items = await BoothPageParser.GetItemsAsync(boothIds, items, cancellationToken: cancellationToken);
             }
@@ -171,7 +173,7 @@ internal static class BoothDownloader
             }
             else
             {
-                Console.WriteLine("No items found to download.");
+                LoggerHelper.GlobalLogger.LogInformation("No items found to download.");
             }
         }, configOption, boothOption, outputDirectoryOption, maxRetriesOption, debugOption, cancellationTokenValueSource);
 
