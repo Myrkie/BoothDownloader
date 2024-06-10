@@ -32,8 +32,7 @@ accessible via Ctrl + Shift + I
 ```json
 {
   "Cookie": "~Token Goes Here~",
-  "FirstBoot": false,
-  "Auto_Zip": true
+  "AutoZip": true
 }
 ```
 
