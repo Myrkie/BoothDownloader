@@ -10,6 +10,8 @@ namespace BoothDownloader.Miscellaneous
 
         public static readonly Regex DownloadRegex = GetDownloadRegex();
 
+        public static readonly Regex OrdersRegex = GetOrdersRegex();
+
 
         [GeneratedRegex(@"(\d+)", RegexOptions.Compiled)]
         private static partial Regex GetIdRegex();
@@ -17,7 +19,10 @@ namespace BoothDownloader.Miscellaneous
         [GeneratedRegex(@"booth\.pm(?:\/\w+)?\/items\/(\d+)", RegexOptions.Compiled)]
         private static partial Regex GetItemRegex();
 
-        [GeneratedRegex(@"https\:\/\/booth\.pm\/downloadables\/[0-9]{0,}", RegexOptions.Compiled)]
+        [GeneratedRegex(@"https\:\/\/booth\.pm\/downloadables\/(\d+)", RegexOptions.Compiled)]
         private static partial Regex GetDownloadRegex();
+
+        [GeneratedRegex(@"https\:\/\/accounts\.booth\.pm\/orders\/(\d+)", RegexOptions.Compiled)]
+        private static partial Regex GetOrdersRegex();
     }
 }

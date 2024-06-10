@@ -1,4 +1,4 @@
-using System.CommandLine;
+using System.Collections.Concurrent;
 using BoothDownloader.Miscellaneous;
 using BoothDownloader.src.Web;
 using HtmlAgilityPack;
@@ -148,6 +148,11 @@ public class BoothPageParser
     {
         Dictionary<string, BoothItemAssets> items = incomingItems ?? [];
 
+        if(!boothIds.Any())
+        {
+            return items;
+        }
+
         foreach (var boothId in boothIds)
         {
             if(!items.ContainsKey(boothId))
@@ -159,47 +164,126 @@ public class BoothPageParser
         var options = BoothProgressBarOptions.Layer1;
         options.CollapseWhenFinished = false;
 
+        ConcurrentBag<string> orders = [];
+
         bool hasAGiftedItem = false;
         int remainingItems = boothIds.Count();
-        using (var jsonProgressBar = new ProgressBar(remainingItems, $"Getting booth items ({remainingItems}/{boothIds.Count()} Left)", options))
+        using (var progressBar = new ProgressBar(remainingItems, $"Getting booth items ({remainingItems}/{boothIds.Count()} Left)", options))
         {
-
             await Task.WhenAll(boothIds.Select(boothId => Task.Run(async () =>
             {
                 try
                 {
-                    if (!items[boothId].TriedToGetJson)
+                    var itemPageAuthed = await BoothHttpClientManager.GetItemJsonAsync(boothId, false, cancellationToken);
+
+                    var itemOrders = RegexStore.OrdersRegex.Matches(itemPageAuthed).Select(m => m.Value);
+
+                    foreach (var order in itemOrders)
                     {
-                        var itemPage = await BoothHttpClientManager.GetItemJsonAsync(boothId, true, cancellationToken);
-                        items[boothId].BoothPageJson = itemPage;
-                        AddItemsFromJson(items[boothId].BoothPageJson, boothId, ref items);
+                        if (!string.IsNullOrWhiteSpace(order))
+                        {
+                            orders.Add(order);
+                        }
                     }
 
                     if (!hasAGiftedItem)
                     {
-                        var itemPageAuthed = await BoothHttpClientManager.GetItemJsonAsync(boothId, false, cancellationToken);
                         var boothJsonItem = JsonConvert.DeserializeObject<BoothJsonItem>(itemPageAuthed);
                         if (boothJsonItem?.Gift != null)
                         {
                             hasAGiftedItem = true;
                         }
                     }
+
+                    if (!items[boothId].TriedToGetJson)
+                    {
+                        var itemPage = await BoothHttpClientManager.GetItemJsonAsync(boothId, true, cancellationToken);
+                        items[boothId].BoothPageJson = itemPage;
+                        AddItemsFromJson(items[boothId].BoothPageJson, boothId, ref items);
+                    }
                 }
                 catch (HttpRequestException)
                 {
-                    jsonProgressBar.WriteLine($"Failed to get page for {boothId}. Invalid Id or Possible deleted.");
+                    progressBar.WriteLine($"Failed to get page for {boothId}. Invalid Id or Possible deleted.");
                 }
                 finally
                 {
                     items[boothId].TriedToGetJson = true;
-                    lock (jsonProgressBar)
+                    lock (progressBar)
                     {
-                        jsonProgressBar.Tick();
+                        progressBar.Tick();
                         remainingItems--;
-                        jsonProgressBar.Message = $"Getting booth jsons ({remainingItems}/{items.Count} Left)";
+                        progressBar.Message = $"Getting booth jsons ({remainingItems}/{items.Count} Left)";
                     }
                 }
             })));
+        }
+
+        Console.WriteLine();
+
+        orders = new ConcurrentBag<string>(orders.Distinct());
+        var downloads = new ConcurrentBag<(string Id, string Url)>();
+
+        if (!orders.IsEmpty)
+        {
+            int remainingOrders = orders.Count();
+            using (var progressBar = new ProgressBar(remainingOrders, $"Getting orders ({remainingOrders}/{orders.Count} Left)", options))
+            {
+                await Task.WhenAll(orders.Select(order => Task.Run(async () =>
+                {
+                    try
+                    {
+                        var orderPage = await BoothHttpClientManager.HttpClient.GetAsync(order, cancellationToken);
+                        var orderContent = await orderPage.Content.ReadAsStringAsync(cancellationToken);
+
+                        HtmlDocument htmlDoc = new();
+                        htmlDoc.LoadHtml(orderContent);
+
+                        // Out of all the scraping, this is most likely to break.
+                        var downloadNodes = htmlDoc.DocumentNode.Descendants("div")
+                            .Where(node => node.GetAttributeValue("class", string.Empty).Equals("sheet sheet--p400 mobile:pt-[13px] mobile:px-16 mobile:pb-8"));
+
+                        if (downloadNodes?.Any() == true)
+                        {
+                            foreach (var downloadNode in downloadNodes)
+                            {
+                                var itemMatch = RegexStore.ItemRegex.Match(downloadNode.InnerHtml);
+
+                                if (boothIds.Contains(itemMatch.Groups[1].Value))
+                                {
+                                    foreach (var downloadUrl in RegexStore.DownloadRegex.Matches(downloadNode.InnerHtml).Select(match => match.Value))
+                                    {
+                                        downloads.Add((itemMatch.Groups[1].Value, downloadUrl));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch (HttpRequestException)
+                    {
+                        progressBar.WriteLine($"Failed to get order page for {order}.");
+                    }
+                    finally
+                    {
+                        lock (progressBar)
+                        {
+                            progressBar.Tick();
+                            remainingOrders--;
+                            progressBar.Message = $"Getting orders ({remainingOrders}/{orders.Count} Left)";
+                        }
+                    }
+                })));
+            }
+
+            Console.WriteLine();
+        }
+
+        foreach (var download in downloads)
+        {
+            if (!string.IsNullOrWhiteSpace(download.Url) && !items[download.Id].Downloadables.Contains(download.Url))
+            {
+                items[download.Id].Downloadables.Add(download.Url);
+            }
         }
 
         if (hasAGiftedItem)
