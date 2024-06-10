@@ -16,6 +16,7 @@ public static class BoothDownloaderProtocol
 #pragma warning disable CA1416
     public static void RegisterContext()
     {
+#if WINDOWS_BUILD
         try
         {
             using (RegistryKey key = Registry.CurrentUser.OpenSubKey(RegistryPath, true) ??
@@ -51,10 +52,16 @@ public static class BoothDownloaderProtocol
             Thread.Sleep(5000);
             throw;
         }
+#endif
+#if LINUX_BUILD
+        LoggerHelper.GlobalLogger.LogError("This operation is only supported on windows.");
+        Exit();
+#endif
     }
 
     public static void UnregisterContext()
     {
+#if WINDOWS_BUILD
         try
         {
             Registry.CurrentUser.DeleteSubKeyTree(RegistryPath);
@@ -68,6 +75,11 @@ public static class BoothDownloaderProtocol
             Thread.Sleep(5000);
             throw;
         }
+#endif
+#if LINUX_BUILD
+        LoggerHelper.GlobalLogger.LogError("This operation is only supported on windows.");
+        Exit();
+#endif
     }
 #pragma warning restore CA1416
 

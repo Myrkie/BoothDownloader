@@ -17,9 +17,9 @@ internal static class BoothDownloader
         LoggerHelper.GlobalLogger.LogInformation("Booth Downloader - V{Version}", typeof(BoothDownloader).Assembly.GetName().Version);
 
         Environment.CurrentDirectory = AppContext.BaseDirectory;
-
+#if WINDOWS_BUILD
         args = BoothDownloaderProtocol.HandleProtocol(args);
-
+#endif
         var rootCommand = new RootCommand("Booth Downloader");
 
         var configOption = new Option<string>(

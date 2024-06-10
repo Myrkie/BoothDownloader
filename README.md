@@ -1,14 +1,12 @@
 ﻿# BoothDownloader
-Downloads all images and free files from a booth item's gallery.
+Downloads all images, free and paid files you own from a booth item's gallery.
 
 https://booth.pm/
 
 # Use
-> sign into booth and grab your accounts Cookie called `_plaza_session_nktz7u` and provide this to the console app or paste into generated BDConfig.json File
->
-> paste URL or ID of item into program console.
+> paste URL or ID of item into program console, or use the download button added by the user script.
 > 
-> or paste the orders page `https://accounts.booth.pm/orders` to download all orders
+> or paste the [orders](https://accounts.booth.pm/orders) / [gifts](https://accounts.booth.pm/library/gifts) page to download all orders or gifted items.
 > 
 
 Usable format:
@@ -17,14 +15,29 @@ Usable format:
 > https://harukappumen.booth.pm/items/3807513
 >
 > 3807513
+> 
+> gifts
+> 
+> orders
 
-follow these video's to get your access token, this is required for downloading free files.
+follow these video's or the automatic setup to get your access token, this is required for downloading free items and any items you have paid for.
 
-# Chrome
+# Automatic setup
+1. download latest BoothDownloader from [releases](https://github.com/Myrkie/BoothDownloader/releases) V10.0.0 and up required
+2. place BoothDownloader in a preferred location and open up a terminal in the path and run `--register` to register the windows url handler
+3. install the [tampermonkey BETA browser extension](https://www.tampermonkey.net/) (__BETA IS REQUIRED__)
+4. install the script in repo directory [BoothDownloader URL Handler](BoothDownloader%2Fsrc%2FTamperMonkey%2FBoothDownloader%20URL%20Handler-1.0.user.js)
+5. navigate to [Booth library folder or orders page](https://accounts.booth.pm/library) and click the "token button"
+
+![automatic setup](GitImages/automatic-setup-token.png)
+
+
+# Manual setup
+## Chrome
 ![Chrome](GitImages/chrome.gif)
 accessible via Ctrl + Shift + I
 
-# Firefox
+## Firefox
 ![Firefox](GitImages/firefox.gif)
 accessible via Ctrl + Shift + I
 
