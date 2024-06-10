@@ -1,3 +1,4 @@
+using System.CommandLine;
 using BoothDownloader.Miscellaneous;
 using BoothDownloader.src.Web;
 using HtmlAgilityPack;
@@ -8,7 +9,7 @@ namespace BoothDownloader.Web;
 
 public class BoothPageParser
 {
-    public static async Task<Dictionary<string, BoothItemAssets>> GetPageItemsAsync(string path, Dictionary<string, BoothItemAssets>? incomingItems = null, CancellationToken cancellationToken = default)
+    public static async Task<Dictionary<string, BoothItemAssets>> GetPageItemsAsync(string path, Dictionary<string, BoothItemAssets>? incomingItems = null, bool getJsons = true, CancellationToken cancellationToken = default)
     {
         Dictionary<string, BoothItemAssets> items = incomingItems ?? [];
 
@@ -77,91 +78,182 @@ public class BoothPageParser
 
         Console.WriteLine();
 
-        var itemsToGetJsonsOf = items.Where(x => !x.Value.TriedToGetJson);
-        int remainingItems = itemsToGetJsonsOf.Count();
-        using (var jsonProgressBar = new ProgressBar(remainingItems, $"Getting booth jsons ({remainingItems}/{itemsToGetJsonsOf.Count()} Left)", options))
+        if (getJsons)
         {
-            jsonProgressBar.WriteLine("Getting booth jsons");
-            if(itemsToGetJsonsOf.Count() == 0)
+            var itemsToGetJsonsOf = items.Where(x => !x.Value.TriedToGetJson);
+            int remainingItems = itemsToGetJsonsOf.Count();
+            using (var jsonProgressBar = new ProgressBar(remainingItems, $"Getting booth jsons ({remainingItems}/{itemsToGetJsonsOf.Count()} Left)", options))
             {
-                jsonProgressBar.Tick();
-            }
-            else
-            {
-                await Task.WhenAll(itemsToGetJsonsOf.Select(item => Task.Run(async () =>
+                jsonProgressBar.WriteLine("Getting booth jsons");
+                if (itemsToGetJsonsOf.Count() == 0)
                 {
-                    try
+                    jsonProgressBar.Tick();
+                }
+                else
+                {
+                    await Task.WhenAll(itemsToGetJsonsOf.Select(item => Task.Run(async () =>
                     {
-                        var itemPage = await BoothHttpClientManager.GetItemJsonAsync(item.Key, true, cancellationToken);
-                        items[item.Key].BoothPageJson = itemPage;
-
-                        var downloadCollection = RegexStore.DownloadRegex.Matches(itemPage)
-                            .Select(match => match.Value);
-
-                        foreach (var download in downloadCollection)
+                        try
                         {
-                            if (!string.IsNullOrWhiteSpace(download) && !items[item.Key].Downloadables.Contains(download))
-                            {
-                                items[item.Key].Downloadables.Add(download);
-                            }
+                            var itemPage = await BoothHttpClientManager.GetItemJsonAsync(item.Key, true, cancellationToken);
+                            items[item.Key].BoothPageJson = itemPage;
+                            AddItemsFromJson(items[item.Key].BoothPageJson, item.Key, ref items);
                         }
-
-                        var boothJsonItem = JsonConvert.DeserializeObject<BoothJsonItem>(itemPage);
-                        if (boothJsonItem?.Images != null)
+                        catch (HttpRequestException)
                         {
-                            foreach (Image image in boothJsonItem.Images)
+                            jsonProgressBar.WriteLine($"Failed to get page for {item.Key}. Possibly deleted. Grabbing image from preview.");
+
+                            var htmlDoc = new HtmlDocument();
+
+                            foreach (var innerHtml in item.Value.InnerHtml)
                             {
-                                if (!string.IsNullOrWhiteSpace(image.Original) && !items[item.Key].Images.Contains(image.Original))
+                                htmlDoc.LoadHtml(innerHtml);
+
+                                var imageNodes = htmlDoc.DocumentNode.SelectNodes("//img[contains(@class, 'l-library-item-thumbnail')]");
+
+                                if (imageNodes?.Any() == true)
                                 {
-                                    items[item.Key].Images.Add(image.Original);
-                                }
-                                else if (!string.IsNullOrWhiteSpace(image.Resized) && !items[item.Key].Images.Contains(image.Resized))
-                                {
-                                    items[item.Key].Images.Add(image.Resized);
-                                }
-                            }
-                        }
-                    }
-                    catch (HttpRequestException)
-                    {
-                        jsonProgressBar.WriteLine($"Failed to get page for {item.Key}. Possibly deleted. Grabbing image from preview.");
-
-                        var htmlDoc = new HtmlDocument();
-
-                        foreach (var innerHtml in item.Value.InnerHtml)
-                        {
-                            htmlDoc.LoadHtml(innerHtml);
-
-                            var imageNodes = htmlDoc.DocumentNode.SelectNodes("//img[contains(@class, 'l-library-item-thumbnail')]");
-
-                            if (imageNodes?.Any() == true)
-                            {
-                                foreach (var imageNode in imageNodes)
-                                {
-                                    var imageUrl = imageNode.GetAttributeValue("src", string.Empty);
-                                    if (!string.IsNullOrWhiteSpace(imageUrl) && !items[item.Key].Images.Contains(imageUrl))
+                                    foreach (var imageNode in imageNodes)
                                     {
-                                        items[item.Key].Images.Add(imageUrl);
+                                        var imageUrl = imageNode.GetAttributeValue("src", string.Empty);
+                                        if (!string.IsNullOrWhiteSpace(imageUrl) && !items[item.Key].Images.Contains(imageUrl))
+                                        {
+                                            items[item.Key].Images.Add(imageUrl);
+                                        }
                                     }
                                 }
                             }
                         }
-                    }
-                    finally
-                    {
-                        items[item.Key].TriedToGetJson = true;
-                        lock (jsonProgressBar)
+                        finally
                         {
-                            jsonProgressBar.Tick();
-                            remainingItems--;
-                            jsonProgressBar.Message = $"Getting booth jsons ({remainingItems}/{items.Count} Left)";
+                            items[item.Key].TriedToGetJson = true;
+                            lock (jsonProgressBar)
+                            {
+                                jsonProgressBar.Tick();
+                                remainingItems--;
+                                jsonProgressBar.Message = $"Getting booth jsons ({remainingItems}/{items.Count} Left)";
+                            }
                         }
-                    }
-                })));
+                    })));
+                }
+            }
+
+            Console.WriteLine();
+        }
+        return items;
+    }
+
+
+    public static async Task<Dictionary<string, BoothItemAssets>> GetItemsAsync(IEnumerable<string> boothIds, Dictionary<string, BoothItemAssets>? incomingItems = null, CancellationToken cancellationToken = default)
+    {
+        Dictionary<string, BoothItemAssets> items = incomingItems ?? [];
+
+        foreach (var boothId in boothIds)
+        {
+            if(!items.ContainsKey(boothId))
+            {
+                items.Add(boothId, new BoothItemAssets());
             }
         }
 
-        Console.WriteLine();
+        var options = BoothProgressBarOptions.Layer1;
+        options.CollapseWhenFinished = false;
+
+        bool hasAGiftedItem = false;
+        int remainingItems = boothIds.Count();
+        using (var jsonProgressBar = new ProgressBar(remainingItems, $"Getting booth items ({remainingItems}/{boothIds.Count()} Left)", options))
+        {
+
+            await Task.WhenAll(boothIds.Select(boothId => Task.Run(async () =>
+            {
+                try
+                {
+                    if (!items[boothId].TriedToGetJson)
+                    {
+                        var itemPage = await BoothHttpClientManager.GetItemJsonAsync(boothId, true, cancellationToken);
+                        items[boothId].BoothPageJson = itemPage;
+                        AddItemsFromJson(items[boothId].BoothPageJson, boothId, ref items);
+                    }
+
+                    if (!hasAGiftedItem)
+                    {
+                        var itemPageAuthed = await BoothHttpClientManager.GetItemJsonAsync(boothId, false, cancellationToken);
+                        var boothJsonItem = JsonConvert.DeserializeObject<BoothJsonItem>(itemPageAuthed);
+                        if (boothJsonItem?.Gift != null)
+                        {
+                            hasAGiftedItem = true;
+                        }
+                    }
+                }
+                catch (HttpRequestException)
+                {
+                    jsonProgressBar.WriteLine($"Failed to get page for {boothId}. Invalid Id or Possible deleted.");
+                }
+                finally
+                {
+                    items[boothId].TriedToGetJson = true;
+                    lock (jsonProgressBar)
+                    {
+                        jsonProgressBar.Tick();
+                        remainingItems--;
+                        jsonProgressBar.Message = $"Getting booth jsons ({remainingItems}/{items.Count} Left)";
+                    }
+                }
+            })));
+        }
+
+        if (hasAGiftedItem)
+        {
+            Console.WriteLine("Gift item detected, going through gifts to get downloadables!\n");
+            var giftItems = await BoothPageParser.GetPageItemsAsync("library/gifts", [], false, cancellationToken: cancellationToken);
+
+            foreach(var giftItem in giftItems)
+            {
+                if (boothIds.Contains(giftItem.Key))
+                {
+                    foreach (var download in giftItem.Value.Downloadables)
+                    {
+                        if (!items[giftItem.Key].Downloadables.Contains(download))
+                        {
+                            items[giftItem.Key].Downloadables.Add(download);
+                        }
+                    }
+                }
+            }
+        }
+
         return items;
+    }
+
+    private static BoothJsonItem? AddItemsFromJson(string json, string id, ref Dictionary<string, BoothItemAssets> items)
+    {
+        var downloadCollection = RegexStore.DownloadRegex.Matches(json)
+                                .Select(match => match.Value);
+
+        foreach (var download in downloadCollection)
+        {
+            if (!string.IsNullOrWhiteSpace(download) && !items[id].Downloadables.Contains(download))
+            {
+                items[id].Downloadables.Add(download);
+            }
+        }
+
+        var boothJsonItem = JsonConvert.DeserializeObject<BoothJsonItem>(json);
+        if (boothJsonItem?.Images != null)
+        {
+            foreach (Image image in boothJsonItem.Images)
+            {
+                if (!string.IsNullOrWhiteSpace(image.Original) && !items[id].Images.Contains(image.Original))
+                {
+                    items[id].Images.Add(image.Original);
+                }
+                else if (!string.IsNullOrWhiteSpace(image.Resized) && !items[id].Images.Contains(image.Resized))
+                {
+                    items[id].Images.Add(image.Resized);
+                }
+            }
+        }
+
+        return boothJsonItem;
     }
 }

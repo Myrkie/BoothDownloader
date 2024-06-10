@@ -6,6 +6,9 @@ namespace BoothDownloader.src.Web
     {
         [JsonProperty("images")]
         public List<Image>? Images { get; set; }
+
+        [JsonProperty("gift")]
+        public object? Gift { get; set; }
     }
 
     public class Image
