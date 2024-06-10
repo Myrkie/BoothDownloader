@@ -1,54 +1,36 @@
-﻿using System.Collections.Concurrent;
-using System.CommandLine;
+﻿using System.CommandLine;
 using System.CommandLine.Builder;
 using System.CommandLine.Parsing;
-using System.IO.Compression;
-using System.Text;
-using System.Text.RegularExpressions;
-using BoothDownloader.config;
-using BoothDownloader.misc;
-using BoothDownloader.src.misc;
-using BoothDownloader.web;
-using ShellProgressBar;
+using BoothDownloader.Configuration;
+using BoothDownloader.Miscellaneous;
+using BoothDownloader.Web;
+using Discord.Common.Helpers;
+using Microsoft.Extensions.Logging;
 
 namespace BoothDownloader;
 
-internal static partial class BoothDownloader
+internal static class BoothDownloader
 {
-
-    internal static JsonConfig? Configextern;
-
-    private static readonly Regex ImageRegex = GetImageRegex();
-
-    private static readonly Regex ImageGifRegex = GetImageGifRegex();
-
-    private static readonly Regex IdRegex = GetIdRegex();
-
-    private static readonly Regex GuidRegex = GetGuidRegex();
-
-    private static readonly Regex ItemRegex = GetItemRegex();
-
-    private static readonly Regex DownloadRegex = GetDownloadRegex();
-
-    private static readonly Regex DownloadNameRegex = GetDownloadNameRegex();
-
-    private static readonly Regex OrdersRegex = GetOrdersRegex();
-
     private static async Task<int> Main(string[] args)
     {
         Console.Title = $"BoothDownloader - V{typeof(BoothDownloader).Assembly.GetName().Version}";
+        LoggerHelper.GlobalLogger.LogInformation("Booth Downloader - V{Version}", typeof(BoothDownloader).Assembly.GetName().Version);
+
+        Environment.CurrentDirectory = AppContext.BaseDirectory;
+
+        args = BoothDownloaderProtocol.HandleProtocol(args);
 
         var rootCommand = new RootCommand("Booth Downloader");
 
         var configOption = new Option<string>(
             name: "--config",
             description: "Path to configuration file",
-            getDefaultValue: () => "./BDConfig.json"
+            getDefaultValue: () => BoothConfig.DefaultPath
         );
 
         var boothOption = new Option<string?>(
             name: "--booth",
-            description: "Booth ID/URL"
+            description: "Booth IDs/URLs/Collections"
         );
 
         var outputDirectoryOption = new Option<string>(
@@ -63,431 +45,176 @@ internal static partial class BoothDownloader
             getDefaultValue: () => 3
         );
 
+        var debugOption = new Option<bool>(
+            name: "--debug",
+            description: "Run in debug mode",
+            getDefaultValue: () => false
+        );
+
+        var registerOption = new Option<bool>(
+            name: "--register",
+            description: "Register the booth downloader protocol. Application will close after completed.",
+            getDefaultValue: () => false
+        );
+
+        var unregisterOption = new Option<bool>(
+            name: "--unregister",
+            description: "Unregister the booth downloader protocol. Application will close after completed.",
+            getDefaultValue: () => false
+        );
+
         rootCommand.AddGlobalOption(configOption);
         rootCommand.AddOption(boothOption);
         rootCommand.AddOption(outputDirectoryOption);
         rootCommand.AddOption(maxRetriesOption);
+        rootCommand.AddOption(debugOption);
+        rootCommand.AddOption(registerOption);
+        rootCommand.AddOption(unregisterOption);
 
         var cancellationTokenValueSource = new CancellationTokenValueSource();
 
-        rootCommand.SetHandler(async (configFile, boothId, outputDirectory, maxRetries, cancellationToken) =>
+        rootCommand.SetHandler(async (registerProtocol, unregisterProtocol, configFile, boothInput, outputDirectory, maxRetries, debug, cancellationToken) =>
         {
-            var config = new JsonConfig(configFile);
-            Configextern = config;
+            if (debug)
+            {
+                LoggerHelper.GlobalLogger.LogInformation("Arguements:\n{args}", string.Join('\n', args));
+            }
+
+            if (registerProtocol)
+            {
+                BoothDownloaderProtocol.RegisterContext();
+                return;
+            }
+
+            if (unregisterProtocol)
+            {
+                BoothDownloaderProtocol.UnregisterContext();
+                return;
+            }
+
+            BoothConfig.Setup(configFile);
 
             #region First Boot
-
-            if (config.Config.FirstBoot)
+            if (BoothConfig.Instance.Cookie == null)
             {
                 Console.WriteLine("Please paste in your cookie from browser.\n");
                 var cookie = Console.ReadLine();
-                config.Config.Cookie = cookie!;
-                config.Config.FirstBoot = false;
-                config.Save();
-                Console.WriteLine("Cookie set!\n");
+                BoothConfig.Instance.Cookie = cookie ?? string.Empty;
+                BoothConfig.ConfigInstance.Save();
+                LoggerHelper.GlobalLogger.LogInformation("Cookie set");
             }
 
             #endregion
 
-
-            var idFromArgument = true;
-            if (boothId == null)
+            if (string.IsNullOrEmpty(boothInput))
             {
-                idFromArgument = false;
-                Console.WriteLine("Enter the Booth ID or URL: ");
-                boothId = Console.ReadLine();
+                Console.WriteLine("Enter the Booth ID or URL\nOr one of the following collections: owned, library, gifts");
+                Console.Write("> ");
+                boothInput = Console.ReadLine();
             }
 
             #region Prep Booth Client
-
-            var client = new BoothClient(config.Config);
-            var hasValidCookie = await client.IsCookieValidAsync(cancellationToken);
-
-            if (hasValidCookie)
-            {
-                Console.WriteLine("Cookie is valid! - file downloads will function.\n");
-            }
-            else
-            {
-                Console.WriteLine(
-                    "Cookie is not valid file downloads will not function!\nImage downloads will still function\nUpdate your cookie in the config file.\n"
-                );
-                config.Config.Cookie = "";
-                config.Save();
-            }
+            await BoothHttpClientManager.Setup(cancellationToken);
 
             #endregion
 
-            if (boothId == "https://accounts.booth.pm/orders" | boothId?.ToLower() == "orders")
-            {
-                if (hasValidCookie)
-                {
-                    Console.WriteLine("Downloading all Paid Orders!\n");
-                    var list = await BoothOrders.OrdersLoopAsync(cancellationToken);
-                    Console.WriteLine($"Orders to download: {list.Count}\nthis may be more than expected as this doesnt account for invalid or deleted items\n");
+            var commands = boothInput?.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? [];
+            var isLibraryPage = false;
+            var isGiftPage = false;
+            var boothIds = new List<string>();
 
-                    foreach (var items in list)
+            if(commands != null && commands.Length > 0)
+            {
+                foreach (var command in commands)
+                {
+                    if (string.IsNullOrWhiteSpace(command))
                     {
-                        Console.WriteLine($"Downloading {items.Id}\n");
-                        await MainParsingAsync(items.Id, outputDirectory, idFromArgument, config, client, hasValidCookie, maxRetries, cancellationToken);
+                        continue;
                     }
+                    else if (command.Equals("https://accounts.booth.pm/library", StringComparison.OrdinalIgnoreCase) == true
+                     || command.Equals("library", StringComparison.OrdinalIgnoreCase) == true
+                     || command.Equals("libraries", StringComparison.OrdinalIgnoreCase) == true)
+                    {
+                        isLibraryPage = true;
+                    }
+                    else if (command.Equals("https://accounts.booth.pm/library/gifts", StringComparison.OrdinalIgnoreCase) == true
+                          || command.Equals("gift", StringComparison.OrdinalIgnoreCase) == true
+                          || command.Equals("gifts", StringComparison.OrdinalIgnoreCase) == true)
+                    {
+                        isGiftPage = true;
+                    }
+                    else if (command.Equals("https://accounts.booth.pm/orders", StringComparison.OrdinalIgnoreCase) == true
+                          || command.Equals("orders", StringComparison.OrdinalIgnoreCase) == true
+                          || command.Equals("order", StringComparison.OrdinalIgnoreCase) == true
+                          || command.Equals("purchase", StringComparison.OrdinalIgnoreCase) == true
+                          || command.Equals("purchases", StringComparison.OrdinalIgnoreCase) == true)
+                    {
+                        LoggerHelper.GlobalLogger.LogInformation("Orders Page now uses Library!");
+                        isLibraryPage = true;
+                    }
+                    else if (command.Equals("own", StringComparison.OrdinalIgnoreCase) == true
+                          || command.Equals("owned", StringComparison.OrdinalIgnoreCase) == true)
+                    {
+                        isLibraryPage = true;
+                        isGiftPage = true;
+                    }
+                    else
+                    {
+                        var boothId = RegexStore.IdRegex.Matches(command).Select(x => x.Groups[1].Value).Distinct();
+                        if (!boothId.Any())
+                        {
+                            LoggerHelper.GlobalLogger.LogWarning("Could not parse booth IDs, assuming provided value is ID");
+                            boothId = [command];
+                        }
+
+                        boothIds.AddRange(boothId);
+                    }
+                }
+            }
+
+            Dictionary<string, BoothItemAssets> items = [];
+
+            if (isLibraryPage || isGiftPage)
+            {
+                if (BoothHttpClientManager.IsAnonymous)
+                {
+                    LoggerHelper.GlobalLogger.LogError("Cannot download Paid Items with invalid cookie.");
                 }
                 else
                 {
-                    Console.WriteLine("Cannot download paid orders with invalid cookie.\n");
-                    await Task.Delay(1500, cancellationToken);
+                    if (isLibraryPage)
+                    {
+                        LoggerHelper.GlobalLogger.LogInformation("Grabbing all Paid Library Items");
+                        items = await BoothPageParser.GetPageItemsAsync("library", items, cancellationToken: cancellationToken);
+                    }
+
+                    if (isGiftPage)
+                    {
+                        LoggerHelper.GlobalLogger.LogInformation("Grabbing all Paid Gifts");
+                        items = await BoothPageParser.GetPageItemsAsync("library/gifts", items, cancellationToken: cancellationToken);
+                    }
                 }
+            }
+            
+            if (boothIds.Count > 0)
+            {
+                LoggerHelper.GlobalLogger.LogInformation("Grabbing the following booth Ids: {boothIds}", string.Join(';', boothIds));
+
+                items = await BoothPageParser.GetItemsAsync(boothIds, items, cancellationToken: cancellationToken);
+            }
+
+            if (items.Count > 0)
+            {
+                await BoothBatchDownloader.DownloadAsync(items, outputDirectory, maxRetries, debug, cancellationToken);
             }
             else
             {
-                await MainParsingAsync(boothId, outputDirectory, idFromArgument, config, client, hasValidCookie, maxRetries, cancellationToken);
+                LoggerHelper.GlobalLogger.LogInformation("No items found to download.");
             }
-        }, configOption, boothOption, outputDirectoryOption, maxRetriesOption, cancellationTokenValueSource);
+        }, registerOption, unregisterOption, configOption, boothOption, outputDirectoryOption, maxRetriesOption, debugOption, cancellationTokenValueSource);
 
         var commandLineBuilder = new CommandLineBuilder(rootCommand);
         var built = commandLineBuilder.Build();
         return await built.InvokeAsync(args);
     }
-
-    private static async Task MainParsingAsync(string? boothId, string outputDirectory, bool idFromArgument, JsonConfig config, BoothClient client, bool hasValidCookie, int maxRetries, CancellationToken cancellationToken = default)
-    {
-        #region Prep Booth ID
-
-        boothId = IdRegex.Match(boothId!)
-            .Value;
-
-        #endregion
-
-        Console.WriteLine($"max-retries set to {maxRetries}");
-        Console.WriteLine($"requested booth id {boothId}");
-
-        #region Prep Folders
-
-        if (boothId == "")
-        {
-            Console.WriteLine("Booth ID is invalid");
-            return;
-        }
-        var outputDir = Directory.CreateDirectory(outputDirectory);
-        if (Directory.Exists(Path.Combine(outputDir.ToString(), boothId)))
-        {
-            Console.WriteLine("Directory already exists. Deleting...");
-            Directory.Delete(Path.Combine(outputDir.ToString(), boothId),
-                true);
-        }
-
-        var entryDir = Directory.CreateDirectory(Path.Combine(outputDir.ToString(), boothId));
-        var binaryDir = Directory.CreateDirectory(Path.Combine(entryDir.ToString(), "Binary"));
-
-        #endregion
-
-        #region Parse Booth Item Page
-
-        string html;
-        try
-        {
-            html = await client.GetItemPageAsync(boothId, cancellationToken);
-        }
-        catch (System.Net.WebException webException)
-        {
-            Console.WriteLine($"A Web-exception was thrown and will be ignored for this item, Does the page still exist?\n {webException}");
-            Directory.Delete(Path.Combine(binaryDir.ToString(), boothId), true);
-            return;
-        }
-        catch (Exception e)
-        {
-            Console.WriteLine($"An unexpected exception occurred\n {e}");
-            return;
-        }
-
-
-        var imageCollection = ImageRegex.Matches(html)
-            .Select(match => match.Value)
-            .Where(url =>
-                // We only care for Resized Images to reduce download time and disk space
-                GuidRegex.Match(url)
-                    .ToString()
-                    .Split('/')
-                    .Last()
-                    .Contains("base_resized")
-            ).ToArray();
-        var gifCollection = ImageGifRegex.Matches(html)
-            .Select(match => match.Value)
-            .ToArray();
-        var downloadCollection = hasValidCookie
-            ? DownloadRegex.Matches(html)
-                .Select(match => match.Value)
-                .ToArray()
-            : [];
-        var ordersCollection = hasValidCookie
-            ? OrdersRegex.Matches(html)
-                .Select(match => match.Value)
-                .ToArray()
-            : [];
-
-        // Thread safe container for collecting download urls
-        var downloadBag = new ConcurrentBag<string>(downloadCollection);
-
-        #endregion
-
-        #region Parse Booth Order Pages
-
-        try
-        {
-            if (ordersCollection.Length > 0)
-            {
-                await Task.WhenAll(ordersCollection.Select(url => Task.Run(async () =>
-                {
-                    var httpClient = client.MakeHttpClient();
-                    Console.WriteLine("Building download collection for url: {0}", url);
-                    var orderResponse = await httpClient.GetAsync(url, cancellationToken);
-                    var orderHtml = await orderResponse.Content.ReadAsStringAsync(cancellationToken);
-
-                    // Class separates the next item in the order list
-                    var splitByItem = orderHtml.Split("\"u-d-flex\"");
-
-                    foreach (var itemHtml in splitByItem)
-                    {
-                        var itemMatch = ItemRegex.Match(itemHtml);
-
-                        if (itemMatch.Groups[1].Value != boothId) continue;
-                        foreach (var downloadUrl in DownloadRegex.Matches(itemHtml)
-                                     .Select(match => match.Value))
-                        {
-                            downloadBag.Add(downloadUrl);
-                        }
-                    }
-
-                    Console.WriteLine("Finished building download collection for url: {0}", url);
-                })));
-            }
-        }
-        catch (Exception e)
-        {
-            Console.WriteLine(e);
-            StringBuilder sb = new();
-            sb.Append("Exception occured in order downloader.");
-            sb.Append("Dumping orders collection: " + ordersCollection);
-            sb.Append("Dumping orders urls downloadBag: " + downloadBag);
-            Console.WriteLine(sb);
-            throw new BoothClient.DownloadFailedException();
-        }
-
-        #endregion
-
-        #region Download Processing
-        var totalCount = imageCollection.Length + gifCollection.Length + downloadBag.Count;
-
-        var options = new ProgressBarOptions
-        {
-            BackgroundColor = ConsoleColor.White,
-            ForegroundColor = ConsoleColor.Yellow,
-            ProgressCharacter = '─',
-            CollapseWhenFinished = false
-        };
-        var parentOptions = new ProgressBarOptions
-        {
-            BackgroundColor = ConsoleColor.White,
-            ForegroundColor = ConsoleColor.Blue,
-            ProgressCharacter = '─',
-            CollapseWhenFinished = false
-        };
-        var childOptions = new ProgressBarOptions
-        {
-            BackgroundColor = ConsoleColor.White,
-            ForegroundColor = ConsoleColor.Green,
-            ProgressCharacter = '─',
-            CollapseWhenFinished = true
-        };
-
-        var progressBar = new ProgressBar(totalCount, "Overall Progress", options);
-        ConcurrentBag<string> entryDirFiles = [];
-        ConcurrentBag<string> binaryDirFiles = [];
-
-        var imageTaskMessage = "ImageTasks";
-        int remainingImageDownloads = imageCollection.Length;
-        var imageTaskBar = progressBar.Spawn(imageCollection.Length, imageTaskMessage, parentOptions);
-        var imageTasks = imageCollection.Select(url => Task.Run(async () =>
-        {
-            var filename = GuidRegex.Match(url).ToString().Split('/').Last();
-
-            string uniqueFilename;
-            lock (entryDirFiles)
-            {
-                uniqueFilename = Utils.GetUniqueFilename(binaryDir.ToString(), filename, binaryDirFiles);
-                entryDirFiles.Add(uniqueFilename);
-            }
-
-            var child = imageTaskBar.Spawn(10000, uniqueFilename, childOptions);
-            var childProgress = new ChildProgressBarProgress(child);
-
-            await Utils.DownloadFileAsync(url, Path.Combine(entryDir.ToString(), uniqueFilename), childProgress, cancellationToken);
-
-            imageTaskBar.Tick();
-            progressBar.Tick();
-
-            Interlocked.Decrement(ref remainingImageDownloads);
-            imageTaskBar.Message = $"ImageTasks ({remainingImageDownloads} remaining)";
-        })).ToArray();
-
-        var gifTaskMessage = "GifTasks";
-        int remainingGifDownloads = gifCollection.Length;
-        var gifTaskBar = progressBar.Spawn(gifCollection.Length, gifTaskMessage, parentOptions);
-        var gifTasks = gifCollection.Select(url => Task.Run(async () =>
-        {
-            var filename = GuidRegex.Match(url).ToString().Split('/').Last();
-
-            string uniqueFilename;
-            lock (entryDirFiles)
-            {
-                uniqueFilename = Utils.GetUniqueFilename(binaryDir.ToString(), filename, binaryDirFiles);
-                entryDirFiles.Add(uniqueFilename);
-            }
-
-            var child = gifTaskBar.Spawn(10000, uniqueFilename, childOptions);
-            var childProgress = new ChildProgressBarProgress(child);
-
-            await Utils.DownloadFileAsync(url, Path.Combine(entryDir.ToString(), uniqueFilename), childProgress, cancellationToken);
-
-            gifTaskBar.Tick();
-            progressBar.Tick();
-
-            Interlocked.Decrement(ref remainingGifDownloads);
-            gifTaskBar.Message = $"GifTasks ({remainingGifDownloads} remaining)";
-        })).ToArray();
-
-
-        var downloadTaskMessage = "DownloadTasks";
-        int remainingDownloads = downloadBag.Count;
-        var downloadTaskBar = progressBar.Spawn(downloadBag.Count, downloadTaskMessage, parentOptions);
-        var downloadTasks = downloadBag.Select(url => Task.Run(async () =>
-        {
-            var httpClient = client.MakeHttpClient();
-            var resp = await httpClient.GetAsync(url, cancellationToken);
-            var redirectUrl = resp.Headers.Location!.ToString();
-            var filename = DownloadNameRegex.Match(redirectUrl).Groups[1].Value;
-
-            string uniqueFilename;
-            lock (binaryDirFiles)
-            {
-                uniqueFilename = Utils.GetUniqueFilename(binaryDir.ToString(), filename, binaryDirFiles);
-                binaryDirFiles.Add(uniqueFilename);
-            }
-
-            var success = false;
-            var retryCount = 0;
-            var child = downloadTaskBar.Spawn(10000, uniqueFilename, childOptions);
-            var childProgress = new ChildProgressBarProgress(child);
-            while (!success && retryCount < maxRetries)
-            {
-                try
-                {
-                    child.Message = uniqueFilename;
-                    await Utils.DownloadFileAsync(redirectUrl, Path.Combine(binaryDir.ToString(), uniqueFilename), childProgress, cancellationToken);
-                    Interlocked.Decrement(ref remainingDownloads);
-                    downloadTaskBar.Message = $"DownloadTasks ({remainingDownloads} remaining)";
-                    success = true;
-                }
-                catch (Exception ex)
-                {
-                    retryCount++;
-                    child.Message = $"Failed to download {url}. Retry attempt {retryCount}/{maxRetries}. Error: {ex.Message}";
-                    await Task.Delay(5000, cancellationToken);
-                }
-            }
-            if (retryCount < maxRetries)
-            {
-                success = false;
-            }
-
-            downloadTaskBar.Tick();
-            progressBar.Tick();
-
-            if (success) return;
-
-            Console.ForegroundColor = ConsoleColor.Red;
-            child.Message = $"Failed to download {url} after {maxRetries} attempts.";
-            Console.ResetColor();
-        })).ToArray();
-
-        if (imageTasks.Length == 0)
-        {
-            imageTaskBar.Tick();
-            imageTaskBar.WriteLine("No images found skipping downloader.");
-        }
-
-        if (gifTasks.Length == 0)
-        {
-            gifTaskBar.Tick();
-            gifTaskBar.WriteLine("No gifs found skipping downloader.");
-        }
-
-        if (downloadTasks.Length == 0)
-        {
-            downloadTaskBar.Tick();
-            downloadTaskBar.WriteLine("No downloads found skipping downloader.");
-        }
-
-        var allTasks = imageTasks.Concat(gifTasks).Concat(downloadTasks).ToArray();
-        await Task.WhenAll(allTasks);
-
-        #endregion
-
-        #region Compression
-
-        if (config.Config.AutoZip)
-        {
-
-            progressBar.Dispose();
-            if (File.Exists(entryDir + ".zip"))
-            {
-                Console.WriteLine("File already exists. Deleting...");
-                File.Delete(entryDir + ".zip");
-            }
-
-            Console.WriteLine("Zipping!");
-            ZipFile.CreateFromDirectory(entryDir.ToString(), entryDir + ".zip");
-            Console.WriteLine("Zipped!");
-
-            Directory.Delete(entryDir.ToString(), true);
-        }
-
-        #endregion
-
-        #region Exit Successfully
-
-        Console.WriteLine("Done!");
-
-        if (idFromArgument && config.Config.AutoZip)
-        {
-            // used for standard output redirection for path to zip file with another process
-            Console.WriteLine("ENVFilePATH: " + entryDir + ".zip");
-        }
-
-        #endregion
-    }
-
-    [GeneratedRegex(@"https\:\/\/booth\.pximg\.net\/[a-f0-9-]{0,}\/i\/[0-9]{0,}\/[a-zA-Z0-9\-_]{0,}\.(jpg|png)", RegexOptions.Compiled)]
-    private static partial Regex GetImageRegex();
-
-    [GeneratedRegex(@"https\:\/\/booth\.pximg\.net\/[a-f0-9-]{0,}\/i\/[0-9]{0,}\/[a-zA-Z0-9\-_]{0,}\.(gif)", RegexOptions.Compiled)]
-    private static partial Regex GetImageGifRegex();
-
-    [GeneratedRegex(@"[^/]+(?=/$|$)", RegexOptions.Compiled)]
-    private static partial Regex GetIdRegex();
-
-    [GeneratedRegex(@"[a-f0-9-]{0,}\/i\/[0-9]{0,}\/[a-zA-Z0-9\-_]{0,}\.(png|jpg|gif)", RegexOptions.Compiled)]
-    private static partial Regex GetGuidRegex();
-
-    [GeneratedRegex(@"booth\.pm\/items\/(\d+)", RegexOptions.Compiled)]
-    private static partial Regex GetItemRegex();
-
-    [GeneratedRegex(@"https\:\/\/booth\.pm\/downloadables\/[0-9]{0,}", RegexOptions.Compiled)]
-    private static partial Regex GetDownloadRegex();
-
-    [GeneratedRegex(@".*\/(.*)\?", RegexOptions.Compiled)]
-    private static partial Regex GetDownloadNameRegex();
-
-    [GeneratedRegex(@"https\:\/\/accounts\.booth\.pm\/orders\/[0-9]{0,}", RegexOptions.Compiled)]
-    private static partial Regex GetOrdersRegex();
 }

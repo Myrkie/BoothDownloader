@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
         <OutputType>Exe</OutputType>
@@ -6,8 +6,8 @@
         <RootNamespace>BoothDownloader</RootNamespace>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
-        <AssemblyVersion>9.2</AssemblyVersion>
-        <FileVersion>9.2</FileVersion>
+        <AssemblyVersion>10.0.0</AssemblyVersion>
+        <FileVersion>10.0.0</FileVersion>
         <AssemblyName>BoothDownloader</AssemblyName>
         <PackageId>BoothDownloader</PackageId>
         <Authors>BoothDownloader</Authors>
@@ -39,20 +39,14 @@
 
 
     <ItemGroup>
+        <PackageReference Include="HtmlAgilityPack" Version="1.11.61" />
         <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-        <PackageReference Include="PublishAotCompressed" Version="1.0.3" />
+        <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
         <PackageReference Include="ShellProgressBar" Version="5.2.0" />
-        <PackageReference Include="Squid-Box.SevenZipSharp" Version="1.6.2.24" />
         <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
-    </ItemGroup>
-
-    <ItemGroup>
-        <Folder Include="resources\" />
-    </ItemGroup>
-
-    <ItemGroup>
-        <None Remove="resources\7z.dll" />
-        <EmbeddedResource Include="resources\7z.dll" />
+		<PackageReference Include="Serilog" Version="4.0.0" />
+		<PackageReference Include="Serilog.Extensions.Logging" Version="8.0.0" />
+		<PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
     </ItemGroup>
 
 </Project>

@@ -1,6 +1,6 @@
 using ShellProgressBar;
 
-namespace BoothDownloader.misc;
+namespace BoothDownloader.Miscellaneous;
 
 class ChildProgressBarProgress(ChildProgressBar childProgressBar) : IProgress<double>
 {
