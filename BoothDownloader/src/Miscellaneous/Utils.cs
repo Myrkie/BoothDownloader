@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using ShellProgressBar;
 
 namespace BoothDownloader.Miscellaneous;
 
@@ -26,7 +27,7 @@ public static class Utils
         } while (bytesRead > 0);
     }
 
-    public static string GetUniqueFilename(string binaryDir, string filename, ConcurrentBag<string> files)
+    public static string GetUniqueFilename(string binaryDir, string filename, ConcurrentBag<string> files, ProgressBar progressBar)
     {
         int counter = 0;
         string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(filename);
@@ -38,9 +39,7 @@ public static class Utils
         {
             counter++;
             newFilename = $"{fileNameWithoutExtension} ({counter}){extension}";
-            Console.ForegroundColor = ConsoleColor.Blue;
-            Console.WriteLine($"Duplicate file found, extending name {filename} => {newFilename}");
-            Console.ResetColor();
+            progressBar.WriteLine($"Duplicate file found, extending name {filename} => {newFilename}");
         }
 
         return newFilename;

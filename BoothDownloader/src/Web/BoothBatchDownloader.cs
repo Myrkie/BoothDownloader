@@ -63,7 +63,7 @@ namespace BoothDownloader.Web
                         string uniqueFilename;
                         lock (entryDirFiles)
                         {
-                            uniqueFilename = Utils.GetUniqueFilename(entryDir, filename, entryDirFiles);
+                            uniqueFilename = Utils.GetUniqueFilename(entryDir, filename, entryDirFiles, progressBar);
                             entryDirFiles.Add(uniqueFilename);
                         }
 
@@ -96,7 +96,7 @@ namespace BoothDownloader.Web
                         string uniqueFilename;
                         lock (binaryDirFiles)
                         {
-                            uniqueFilename = Utils.GetUniqueFilename(binaryDir, filename, binaryDirFiles);
+                            uniqueFilename = Utils.GetUniqueFilename(binaryDir, filename, binaryDirFiles, progressBar);
                             binaryDirFiles.Add(uniqueFilename);
                         }
 
