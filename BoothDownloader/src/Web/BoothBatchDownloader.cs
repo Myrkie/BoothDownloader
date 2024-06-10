@@ -12,9 +12,15 @@ namespace BoothDownloader.Web
         private const string BoothPageJson = "_BoothPage.json";
         private const string BoothInnerHtmlList = "_BoothInnerHtmlList.json";
 
-        public static async Task DownloadAsync(Dictionary<string, BoothItemAssets> boothItems, string outputDirectory, int maxRetries, CancellationToken cancellationToken = default)
+        public static async Task DownloadAsync(Dictionary<string, BoothItemAssets> boothItems, string outputDirectory, int maxRetries, bool debug = false, CancellationToken cancellationToken = default)
         {
             var outputDir = Directory.CreateDirectory(outputDirectory).ToString();
+
+            if (debug)
+            {
+                Console.WriteLine($"Writing _Debug_BatchDownloadDebug.json");
+                File.WriteAllText(Path.Combine(outputDir, "_Debug_BatchDownloadDebug.json"), JsonConvert.SerializeObject(boothItems, Formatting.Indented));
+            }
 
             var options = BoothProgressBarOptions.Layer1;
             options.CollapseWhenFinished = false;

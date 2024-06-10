@@ -38,6 +38,12 @@ internal static class BoothDownloader
             getDefaultValue: () => 3
         );
 
+        var debugOption = new Option<bool>(
+            name: "--debug",
+            description: "Whether or not to create debug files",
+            getDefaultValue: () => false
+        );
+
         rootCommand.AddGlobalOption(configOption);
         rootCommand.AddOption(boothOption);
         rootCommand.AddOption(outputDirectoryOption);
@@ -45,7 +51,7 @@ internal static class BoothDownloader
 
         var cancellationTokenValueSource = new CancellationTokenValueSource();
 
-        rootCommand.SetHandler(async (configFile, boothId, outputDirectory, maxRetries, cancellationToken) =>
+        rootCommand.SetHandler(async (configFile, boothId, outputDirectory, maxRetries, debug, cancellationToken) =>
         {
             BoothConfig.Setup(configFile);
 
@@ -138,13 +144,13 @@ internal static class BoothDownloader
 
             if (items.Count > 0)
             {
-                await BoothBatchDownloader.DownloadAsync(items, outputDirectory, maxRetries, cancellationToken);
+                await BoothBatchDownloader.DownloadAsync(items, outputDirectory, maxRetries, debug, cancellationToken);
             }
             else
             {
                 Console.WriteLine("No items found to download.");
             }
-        }, configOption, boothOption, outputDirectoryOption, maxRetriesOption, cancellationTokenValueSource);
+        }, configOption, boothOption, outputDirectoryOption, maxRetriesOption, debugOption, cancellationTokenValueSource);
 
         var commandLineBuilder = new CommandLineBuilder(rootCommand);
         var built = commandLineBuilder.Build();
