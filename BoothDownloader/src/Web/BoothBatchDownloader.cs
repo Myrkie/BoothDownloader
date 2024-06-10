@@ -51,100 +51,101 @@ namespace BoothDownloader.Web
                 }
 
                 var totalCount = boothItem.Value.Downloadables.Count + boothItem.Value.Images.Count;
-                var progressBar = new ProgressBar(totalCount, "Overall Progress", options);
 
-                int remainingImages = boothItem.Value.Images.Count;
-                var imageTaskBar = progressBar.Spawn(boothItem.Value.Images.Count, $"Images ({remainingImages}/{boothItem.Value.Images.Count} Left)", parentOptions);
-                var imageTasks = boothItem.Value.Images.Select(url => Task.Run(async () =>
+                using(var progressBar = new ProgressBar(totalCount, "Overall Progress", options))
                 {
-                    var filename = new Uri(url).Segments.Last();
-
-                    string uniqueFilename;
-                    lock (entryDirFiles)
+                    int remainingImages = boothItem.Value.Images.Count;
+                    var imageTaskBar = progressBar.Spawn(boothItem.Value.Images.Count, $"Images ({remainingImages}/{boothItem.Value.Images.Count} Left)", parentOptions);
+                    var imageTasks = boothItem.Value.Images.Select(url => Task.Run(async () =>
                     {
-                        uniqueFilename = Utils.GetUniqueFilename(entryDir, filename, entryDirFiles);
-                        entryDirFiles.Add(uniqueFilename);
-                    }
+                        var filename = new Uri(url).Segments.Last();
 
-                    var child = imageTaskBar.Spawn(10000, uniqueFilename, childOptions);
-                    var childProgress = new ChildProgressBarProgress(child);
-
-                    await Utils.DownloadFileAsync(url, Path.Combine(entryDir, uniqueFilename), childProgress, cancellationToken);
-
-                    imageTaskBar.Tick();
-                    progressBar.Tick();
-
-                    Interlocked.Decrement(ref remainingImages);
-                    imageTaskBar.Message = $"Images ({remainingImages}/{boothItem.Value.Images.Count} Left)";
-                })).ToArray();
-
-                if (boothItem.Value.Images.Count == 0)
-                {
-                    imageTaskBar.Tick();
-                }
-
-
-                int remainingDownloads = boothItem.Value.Downloadables.Count;
-                var downloadTaskBar = progressBar.Spawn(boothItem.Value.Downloadables.Count, $"Downloads ({remainingDownloads}/{boothItem.Value.Downloadables.Count} Left)", parentOptions);
-                var downloadTasks = boothItem.Value.Downloadables.Select(url => Task.Run(async () =>
-                {
-                    var resp = await BoothHttpClientManager.HttpClient.GetAsync(url, cancellationToken);
-                    var redirectUrl = resp.Headers.Location!.ToString();
-                    var filename = new Uri(redirectUrl).Segments.Last();
-
-                    string uniqueFilename;
-                    lock (binaryDirFiles)
-                    {
-                        uniqueFilename = Utils.GetUniqueFilename(binaryDir, filename, binaryDirFiles);
-                        binaryDirFiles.Add(uniqueFilename);
-                    }
-
-                    var success = false;
-                    var retryCount = 0;
-                    var child = downloadTaskBar.Spawn(10000, uniqueFilename, childOptions);
-                    var childProgress = new ChildProgressBarProgress(child);
-                    while (!success && retryCount < maxRetries)
-                    {
-                        try
+                        string uniqueFilename;
+                        lock (entryDirFiles)
                         {
-                            await Utils.DownloadFileAsync(redirectUrl, Path.Combine(binaryDir.ToString(), uniqueFilename), childProgress, cancellationToken);
-                            Interlocked.Decrement(ref remainingDownloads);
-                            downloadTaskBar.Message = $"Downloads ({remainingDownloads}/{boothItem.Value.Downloadables.Count} Left)";
-                            success = true;
+                            uniqueFilename = Utils.GetUniqueFilename(entryDir, filename, entryDirFiles);
+                            entryDirFiles.Add(uniqueFilename);
                         }
-                        catch (Exception ex)
-                        {
-                            retryCount++;
-                            child.Message = $"Failed to download {url}. Retry attempt {retryCount}/{maxRetries}. Error: {ex.Message}";
-                            await Task.Delay(5000, cancellationToken);
-                        }
-                    }
-                    if (retryCount < maxRetries)
+
+                        var child = imageTaskBar.Spawn(10000, uniqueFilename, childOptions);
+                        var childProgress = new ChildProgressBarProgress(child);
+
+                        await Utils.DownloadFileAsync(url, Path.Combine(entryDir, uniqueFilename), childProgress, cancellationToken);
+
+                        imageTaskBar.Tick();
+                        progressBar.Tick();
+
+                        Interlocked.Decrement(ref remainingImages);
+                        imageTaskBar.Message = $"Images ({remainingImages}/{boothItem.Value.Images.Count} Left)";
+                    })).ToArray();
+
+                    if (boothItem.Value.Images.Count == 0)
                     {
-                        success = false;
+                        imageTaskBar.Tick();
                     }
 
-                    downloadTaskBar.Tick();
-                    progressBar.Tick();
 
-                    if (success) return;
+                    int remainingDownloads = boothItem.Value.Downloadables.Count;
+                    var downloadTaskBar = progressBar.Spawn(boothItem.Value.Downloadables.Count, $"Downloads ({remainingDownloads}/{boothItem.Value.Downloadables.Count} Left)", parentOptions);
+                    var downloadTasks = boothItem.Value.Downloadables.Select(url => Task.Run(async () =>
+                    {
+                        var resp = await BoothHttpClientManager.HttpClient.GetAsync(url, cancellationToken);
+                        var redirectUrl = resp.Headers.Location!.ToString();
+                        var filename = new Uri(redirectUrl).Segments.Last();
 
-                    progressBar.WriteErrorLine($"Failed to download {url} after {maxRetries} attempts.");
-                    downloadTaskBar.Message = $"Downloads ({remainingDownloads}/{boothItem.Value.Downloadables.Count} Left)";
-                })).ToArray();
+                        string uniqueFilename;
+                        lock (binaryDirFiles)
+                        {
+                            uniqueFilename = Utils.GetUniqueFilename(binaryDir, filename, binaryDirFiles);
+                            binaryDirFiles.Add(uniqueFilename);
+                        }
 
-                if (boothItem.Value.Downloadables.Count == 0)
-                {
-                    downloadTaskBar.Tick();
+                        var success = false;
+                        var retryCount = 0;
+                        var child = downloadTaskBar.Spawn(10000, uniqueFilename, childOptions);
+                        var childProgress = new ChildProgressBarProgress(child);
+                        while (!success && retryCount < maxRetries)
+                        {
+                            try
+                            {
+                                await Utils.DownloadFileAsync(redirectUrl, Path.Combine(binaryDir.ToString(), uniqueFilename), childProgress, cancellationToken);
+                                Interlocked.Decrement(ref remainingDownloads);
+                                downloadTaskBar.Message = $"Downloads ({remainingDownloads}/{boothItem.Value.Downloadables.Count} Left)";
+                                success = true;
+                            }
+                            catch (Exception ex)
+                            {
+                                retryCount++;
+                                child.Message = $"Failed to download {url}. Retry attempt {retryCount}/{maxRetries}. Error: {ex.Message}";
+                                await Task.Delay(5000, cancellationToken);
+                            }
+                        }
+                        if (retryCount < maxRetries)
+                        {
+                            success = false;
+                        }
+
+                        downloadTaskBar.Tick();
+                        progressBar.Tick();
+
+                        if (success) return;
+
+                        child.Message = $"Failed to download {url} after {maxRetries} attempts.";
+                        progressBar.WriteErrorLine($"Failed to download {url} after {maxRetries} attempts.");
+                    })).ToArray();
+
+                    if (boothItem.Value.Downloadables.Count == 0)
+                    {
+                        downloadTaskBar.Tick();
+                    }
+
+                    var allTasks = imageTasks.Concat(downloadTasks).ToArray();
+                    await Task.WhenAll(allTasks);
+
                 }
-
-                var allTasks = imageTasks.Concat(downloadTasks).ToArray();
-                await Task.WhenAll(allTasks);
 
                 if (BoothConfig.Instance.AutoZip)
                 {
-
-                    progressBar.Dispose();
                     if (File.Exists(entryDir + ".zip"))
                     {
                         Console.WriteLine("File already exists. Deleting...");
