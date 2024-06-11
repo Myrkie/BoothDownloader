@@ -165,10 +165,8 @@ internal static class BoothDownloader
                         var boothId = RegexStore.IdRegex.Matches(command).Select(x => x.Groups[1].Value).Distinct();
                         if (!boothId.Any())
                         {
-                            LoggerHelper.GlobalLogger.LogWarning("Could not parse booth IDs, assuming provided value is ID");
-                            boothId = [command];
+                            LoggerHelper.GlobalLogger.LogError("Could not parse booth IDs, {command}", command);
                         }
-
                         boothIds.AddRange(boothId);
                     }
                 }
@@ -181,9 +179,8 @@ internal static class BoothDownloader
                 if (BoothHttpClientManager.IsAnonymous)
                 {
                     LoggerHelper.GlobalLogger.LogError("Cannot download Paid Items with invalid cookie.");
-                    LoggerHelper.GlobalLogger.LogInformation("Exiting in 5 seconds...");
+                    LoggerHelper.GlobalLogger.LogInformation("Continuing in 5 seconds...");
                     Thread.Sleep(5000);
-                    Environment.Exit(0);
                 }
                 else
                 {
@@ -214,7 +211,8 @@ internal static class BoothDownloader
             }
             else
             {
-                LoggerHelper.GlobalLogger.LogInformation("No items found to download.");
+                LoggerHelper.GlobalLogger.LogError("No items found to download, exiting in 5 seconds");
+                Thread.Sleep(5000);
             }
         }, registerOption, unregisterOption, configOption, boothOption, outputDirectoryOption, maxRetriesOption, debugOption, cancellationTokenValueSource);
 
