@@ -1,6 +1,7 @@
 ﻿using System.CommandLine;
 using System.CommandLine.Builder;
 using System.CommandLine.Parsing;
+using System.Text;
 using BoothDownloader.Configuration;
 using BoothDownloader.Miscellaneous;
 using BoothDownloader.Web;
@@ -14,6 +15,7 @@ internal static class BoothDownloader
     private static async Task<int> Main(string[] args)
     {
         Console.Title = $"BoothDownloader - V{typeof(BoothDownloader).Assembly.GetName().Version}";
+        Console.OutputEncoding = Encoding.Unicode;
         LoggerHelper.GlobalLogger.LogInformation("Booth Downloader - V{Version}", typeof(BoothDownloader).Assembly.GetName().Version);
 
         Environment.CurrentDirectory = AppContext.BaseDirectory;
@@ -95,7 +97,7 @@ internal static class BoothDownloader
             BoothConfig.Setup(configFile);
 
             #region First Boot
-            if (BoothConfig.Instance.Cookie == null)
+            if (string.IsNullOrWhiteSpace(BoothConfig.Instance.Cookie))
             {
                 Console.WriteLine("Please paste in your cookie from browser.\n");
                 var cookie = Console.ReadLine();
@@ -179,6 +181,9 @@ internal static class BoothDownloader
                 if (BoothHttpClientManager.IsAnonymous)
                 {
                     LoggerHelper.GlobalLogger.LogError("Cannot download Paid Items with invalid cookie.");
+                    LoggerHelper.GlobalLogger.LogInformation("Exiting in 5 seconds...");
+                    Thread.Sleep(5000);
+                    Environment.Exit(0);
                 }
                 else
                 {
