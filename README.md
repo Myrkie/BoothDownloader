@@ -8,6 +8,8 @@ https://booth.pm/
 > 
 > or paste the [orders](https://accounts.booth.pm/orders) / [gifts](https://accounts.booth.pm/library/gifts) page to download all orders or gifted items.
 > 
+> or type owned for all user owned assets.
+> 
 
 Usable format:
 > https://booth.pm/en/items/3807513
@@ -19,6 +21,8 @@ Usable format:
 > gifts
 > 
 > orders
+> 
+> owned
 
 follow these video's or the automatic setup to get your access token, this is required for downloading free items and any items you have paid for.
 

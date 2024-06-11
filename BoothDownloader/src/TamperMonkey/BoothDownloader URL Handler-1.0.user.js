@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         BoothDownloader URL Handler
 // @namespace    http://tampermonkey.net/
-// @version      1.0
+// @version      1.0.1
 // @description  Adds url handler button to booth.pm
 // @author       Myrkur
 // @supportURL   https://github.com/Myrkie/BoothDownloader/
@@ -82,8 +82,9 @@
             if(globalNav)
             {
                 addTokenButton(globalNav, 'Token')
-                addButton(globalNav, 'Orders', 'orders');
-                addButton(globalNav, 'Gifts', 'gifts');
+                addButton(globalNav, 'Owned', 'owned');
+                addButton(globalNav, 'Orders Only', 'orders');
+                addButton(globalNav, 'Gifts Only', 'gifts');
                 console.log("[BoothDownloader] added library buttons");
             }
         }
