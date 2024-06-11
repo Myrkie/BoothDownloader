@@ -24,6 +24,12 @@ public static class BoothHttpClientManager
 
     public static async Task Setup(CancellationToken cancellationToken)
     {
+        if (BoothConfig.Instance.Cookie == BoothConfig.AnonymousCookie)
+        {
+            LoggerHelper.GlobalLogger.LogWarning("Using anonymous cookie - Purchased file downloads will not function.");
+            return;
+        }
+
         var httpClient = new HttpClient(HttpHandler);
         httpClient.DefaultRequestHeaders.Add("Cookie", $"adult=t{(string.IsNullOrWhiteSpace(BoothConfig.Instance.Cookie) ? string.Empty : $"; _plaza_session_nktz7u={BoothConfig.Instance.Cookie}")}");
 

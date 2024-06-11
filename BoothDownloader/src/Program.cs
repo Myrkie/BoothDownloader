@@ -97,14 +97,21 @@ internal static class BoothDownloader
             BoothConfig.Setup(configFile);
 
             #region First Boot
+
             if (string.IsNullOrWhiteSpace(BoothConfig.Instance.Cookie))
             {
                 Console.WriteLine("Please paste in your cookie from browser.\n");
                 var cookie = Console.ReadLine();
-                BoothConfig.Instance.Cookie = cookie ?? string.Empty;
+                BoothConfig.Instance.Cookie = string.IsNullOrWhiteSpace(cookie) ? BoothConfig.AnonymousCookie : string.Empty;
                 BoothConfig.ConfigInstance.Save();
                 LoggerHelper.GlobalLogger.LogInformation("Cookie set");
             }
+
+            #endregion
+
+            #region Prep Booth Client
+
+            await BoothHttpClientManager.Setup(cancellationToken);
 
             #endregion
 
@@ -114,11 +121,6 @@ internal static class BoothDownloader
                 Console.Write("> ");
                 boothInput = Console.ReadLine();
             }
-
-            #region Prep Booth Client
-            await BoothHttpClientManager.Setup(cancellationToken);
-
-            #endregion
 
             var commands = boothInput?.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? [];
             var isLibraryPage = false;
