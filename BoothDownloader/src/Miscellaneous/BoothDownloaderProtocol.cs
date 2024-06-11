@@ -109,7 +109,7 @@ public static class BoothDownloaderProtocol
                 if (token != null)
                 {
                     BoothConfig.Setup(BoothConfig.DefaultPath);
-                    BoothConfig.Instance.Cookie = token;
+                    BoothConfig.Instance.Cookie = HttpUtility.UrlEncode(token);
                     BoothConfig.ConfigInstance.Save();
                     LoggerHelper.GlobalLogger.LogInformation("Cookie set from Protocol");
 
@@ -132,7 +132,7 @@ public static class BoothDownloaderProtocol
 
     private static void Exit()
     {
-        LoggerHelper.GlobalLogger.LogInformation("Exiting...");
+        LoggerHelper.GlobalLogger.LogInformation("Exiting in 5 seconds...");
         Thread.Sleep(5000);
         Environment.Exit(0);
     }
