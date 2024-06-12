@@ -6,7 +6,7 @@
         <RootNamespace>BoothDownloader</RootNamespace>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
-        <AssemblyVersion>10.0.2</AssemblyVersion>
+        <AssemblyVersion>10.0.3</AssemblyVersion>
         <FileVersion>10.0.2</FileVersion>
         <AssemblyName>BoothDownloader</AssemblyName>
         <PackageId>BoothDownloader</PackageId>

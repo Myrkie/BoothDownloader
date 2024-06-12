@@ -16,7 +16,8 @@ public static class BoothHttpClientManager
     {
         DefaultRequestHeaders =
         {
-            { "Cookie", "adult=t" }
+            { "Cookie", "adult=t" },
+            { "User-Agent", BoothDownloader.UserAgent }
         }
     };
     public static HttpClient HttpClient { get; private set; } = AnonymousHttpClient;
@@ -32,6 +33,7 @@ public static class BoothHttpClientManager
 
         var httpClient = new HttpClient(HttpHandler);
         httpClient.DefaultRequestHeaders.Add("Cookie", $"adult=t{(string.IsNullOrWhiteSpace(BoothConfig.Instance.Cookie) ? string.Empty : $"; _plaza_session_nktz7u={BoothConfig.Instance.Cookie}")}");
+        httpClient.DefaultRequestHeaders.Add("User-Agent", BoothDownloader.UserAgent);
 
         var response = await httpClient.GetAsync(UrlAccountSettings, cancellationToken);
         if (response.StatusCode == HttpStatusCode.OK)
