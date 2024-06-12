@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         BoothDownloader URL Handler
 // @namespace    http://tampermonkey.net/
-// @version      1.1.1
-// @updateURL    https://github.com/Myrkie/BoothDownloader/raw/master/BoothDownloader/src/TamperMonkey/BoothDownloader%20URL%20Handler.user.js
-// @downloadURL  https://github.com/Myrkie/BoothDownloader/raw/master/BoothDownloader/src/TamperMonkey/BoothDownloader%20URL%20Handler.user.js
+// @version      1.1.2
+// @updateURL    https://raw.githubusercontent.com/Myrkie/BoothDownloader/master/BoothDownloader/src/TamperMonkey/BoothDownloader%20URL%20Handler.user.js
+// @downloadURL  https://raw.githubusercontent.com/Myrkie/BoothDownloader/master/BoothDownloader/src/TamperMonkey/BoothDownloader%20URL%20Handler.user.js
 // @description  Adds url handler button to booth.pm
 // @author       Myrkur
 // @supportURL   https://github.com/Myrkie/BoothDownloader/
