@@ -6,6 +6,7 @@
 // @downloadURL  https://raw.githubusercontent.com/Myrkie/BoothDownloader/master/BoothDownloader/src/TamperMonkey/BoothDownloader%20URL%20Handler.user.js
 // @description  Adds url handler button to booth.pm
 // @author       Myrkur
+// @icon         https://www.google.com/s2/favicons?domain=booth.pm
 // @supportURL   https://github.com/Myrkie/BoothDownloader/
 // @match        https://*.booth.pm/*
 // @match        https://booth.pm/*
@@ -15,7 +16,7 @@
 
 (function() {
     'use strict';
-    
+
     function addButtonboothplorer(item, buttonText, targetUrl) {
         let button = document.createElement('button');
         button.innerText = buttonText;
