@@ -2,6 +2,8 @@
 // @name         BoothDownloader URL Handler
 // @namespace    http://tampermonkey.net/
 // @version      1.1.0
+// @updateURL    https://github.com/Myrkie/BoothDownloader/raw/master/BoothDownloader/src/TamperMonkey/BoothDownloader%20URL%20Handler.user.js
+// @downloadURL  https://github.com/Myrkie/BoothDownloader/raw/master/BoothDownloader/src/TamperMonkey/BoothDownloader%20URL%20Handler.user.js
 // @description  Adds url handler button to booth.pm
 // @author       Myrkur
 // @supportURL   https://github.com/Myrkie/BoothDownloader/
@@ -13,9 +15,7 @@
 
 (function() {
     'use strict';
-
-
-
+    
     function addButtonboothplorer(item, buttonText, targetUrl) {
         let button = document.createElement('button');
         button.innerText = buttonText;
@@ -97,34 +97,33 @@
         item.appendChild(button);
     }
 
-
     window.addEventListener('load', function() {
 
         if (window.location.href.includes('booth.pm')){
             if (window.location.href.includes('accounts.booth.pm') || window.location.href.includes('manage.booth.pm'))
             {
                 console.log("[BoothDownloader:booth] constructing global navigation bar buttons");
-                let globalNav = document.querySelector('.global-nav.shrink');
-                if(globalNav)
+                let globalNavbooth = document.querySelector('.global-nav.shrink');
+                if(globalNavbooth)
                 {
-                    addTokenButtonbooth(globalNav, 'Token')
-                    addButtonbooth(globalNav, 'Owned', 'owned');
-                    addButtonbooth(globalNav, 'Orders Only', 'orders');
-                    addButtonbooth(globalNav, 'Gifts Only', 'gifts');
+                    addTokenButtonbooth(globalNavbooth, 'Token')
+                    addButtonbooth(globalNavbooth, 'Owned', 'owned');
+                    addButtonbooth(globalNavbooth, 'Orders Only', 'orders');
+                    addButtonbooth(globalNavbooth, 'Gifts Only', 'gifts');
                     console.log("[BoothDownloader:booth] added library buttons");
                 }
             }
             if (window.location.href.includes('items') && !window.location.href.includes('account'))
             {
                 console.log("[BoothDownloader:booth] Created Item button");
-                let item = document.querySelector('.item-search-box.flex.w-full.max-w-\\[600px\\].box-border');
-                if(item)
+                let itembooth = document.querySelector('.item-search-box.flex.w-full.max-w-\\[600px\\].box-border');
+                if(itembooth)
                 {
                     var trimidbooth = window.location.href.lastIndexOf('/');
 
                     var parsedidbooth = window.location.href.substring(trimidbooth + 1);
 
-                    addButtonbooth(item, 'Download', parsedidbooth);
+                    addButtonbooth(itembooth, 'Download', parsedidbooth);
                     console.log("[BoothDownloader:booth] Parsed ID: " + parsedidbooth);
                 }
             }
@@ -134,8 +133,8 @@
             if (window.location.href.includes('/avatar/'))
             {
                 console.log("[BoothDownloader:boothplorer] constructing global navigation bar buttons");
-                let globalNav = document.querySelector('div[class*="flex-col"][class*="flex-wrap"][class*="gap-y-4"][class*="2xl\\:gap-y-0"][class*="2xl\\:flex-row"][class*="2xl\\:gap-x-4"]');
-                if(globalNav)
+                let globalNavboothplorer = document.querySelector('div[class*="flex-col"][class*="flex-wrap"][class*="gap-y-4"][class*="2xl\\:gap-y-0"][class*="2xl\\:flex-row"][class*="2xl\\:gap-x-4"]');
+                if(globalNavboothplorer)
                 {
                     console.log("[BoothDownloader:boothplorer] added download button");
 
@@ -143,13 +142,11 @@
 
                     var parsedidboothplorer = window.location.href.substring(trimidboothplorer + 1);
 
-                    addButtonboothplorer(globalNav, 'DOWNLOAD', parsedidboothplorer);
+                    addButtonboothplorer(globalNavboothplorer, 'DOWNLOAD', parsedidboothplorer);
                     console.log("[BoothDownloader:boothplorer] Parsed ID: " + parsedidboothplorer);
                 }
             }
         }
-
-
         console.log("[BoothDownloader:core] everything...  seems to be in order");
     });
 })();
