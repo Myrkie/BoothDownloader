@@ -13,7 +13,9 @@
 
 (function() {
     'use strict';
-    
+
+
+
     function addButtonboothplorer(item, buttonText, targetUrl) {
         let button = document.createElement('button');
         button.innerText = buttonText;
@@ -132,7 +134,7 @@
             if (window.location.href.includes('/avatar/'))
             {
                 console.log("[BoothDownloader:boothplorer] constructing global navigation bar buttons");
-                let globalNav = document.querySelector('div[class*="flex-grow"][class*="flex"][class*="flex-col"][class*="pt-3"][class*="md\\:pt-7"]');
+                let globalNav = document.querySelector('div[class*="flex-col"][class*="flex-wrap"][class*="gap-y-4"][class*="2xl\\:gap-y-0"][class*="2xl\\:flex-row"][class*="2xl\\:gap-x-4"]');
                 if(globalNav)
                 {
                     console.log("[BoothDownloader:boothplorer] added download button");
@@ -145,7 +147,6 @@
                     console.log("[BoothDownloader:boothplorer] Parsed ID: " + parsedidboothplorer);
                 }
             }
-
         }
 
 
