@@ -1,7 +1,7 @@
 ﻿using System.CommandLine;
 using System.CommandLine.Builder;
 using System.CommandLine.Parsing;
-using System.Text;
+using System.Reflection;
 using BoothDownloader.Configuration;
 using BoothDownloader.Miscellaneous;
 using BoothDownloader.Web;
@@ -12,12 +12,21 @@ namespace BoothDownloader;
 
 internal static class BoothDownloader
 {
+    private static readonly string FormattedVersion = 
+        $"{Assembly.GetExecutingAssembly().GetName().Version!.Major}." +
+        $"{Assembly.GetExecutingAssembly().GetName().Version!.Minor}." +
+        $"{Assembly.GetExecutingAssembly().GetName().Version!.Build}";
+    
+    internal static readonly string UserAgent = $"BoothDownloader/{FormattedVersion} (+{GithubUrl})";
+    
+    private const string GithubUrl = "https://github.com/Myrkie/BoothDownloader";
+    private static readonly string Version = $"Booth Downloader - V{FormattedVersion}";
     private static async Task<int> Main(string[] args)
     {
-        Console.Title = $"BoothDownloader - V{typeof(BoothDownloader).Assembly.GetName().Version}";
-        LoggerHelper.GlobalLogger.LogInformation("Booth Downloader - V{Version}", typeof(BoothDownloader).Assembly.GetName().Version);
-
+        Console.Title = Version;
+        LoggerHelper.GlobalLogger.LogInformation(Version);
         Environment.CurrentDirectory = AppContext.BaseDirectory;
+        
 #if WINDOWS_BUILD
         args = BoothDownloaderProtocol.HandleProtocol(args);
 #endif

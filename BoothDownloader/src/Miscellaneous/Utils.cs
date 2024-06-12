@@ -8,6 +8,7 @@ public static class Utils
     public static async Task DownloadFileAsync(string url, string destinationPath, IProgress<double> progress, CancellationToken cancellationToken = default)
     {
         using var httpClient = new HttpClient();
+        httpClient.DefaultRequestHeaders.Add("User-Agent", BoothDownloader.UserAgent);
         var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         response.EnsureSuccessStatusCode();
         var contentLength = response.Content.Headers.ContentLength ?? -1;
