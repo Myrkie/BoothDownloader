@@ -5,6 +5,7 @@ namespace BoothDownloader.Configuration;
 public class BoothConfig
 {
     public const string DefaultPath = "./BDConfig.json";
+    public const string AnonymousCookie = "ANONYMOUS";
 
     public static void Setup(string path)
     {

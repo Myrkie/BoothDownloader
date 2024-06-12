@@ -1,6 +1,7 @@
 ﻿using System.CommandLine;
 using System.CommandLine.Builder;
 using System.CommandLine.Parsing;
+using System.Text;
 using BoothDownloader.Configuration;
 using BoothDownloader.Miscellaneous;
 using BoothDownloader.Web;
@@ -14,6 +15,7 @@ internal static class BoothDownloader
     private static async Task<int> Main(string[] args)
     {
         Console.Title = $"BoothDownloader - V{typeof(BoothDownloader).Assembly.GetName().Version}";
+        Console.OutputEncoding = Encoding.Unicode;
         LoggerHelper.GlobalLogger.LogInformation("Booth Downloader - V{Version}", typeof(BoothDownloader).Assembly.GetName().Version);
 
         Environment.CurrentDirectory = AppContext.BaseDirectory;
@@ -95,14 +97,21 @@ internal static class BoothDownloader
             BoothConfig.Setup(configFile);
 
             #region First Boot
-            if (BoothConfig.Instance.Cookie == null)
+
+            if (string.IsNullOrWhiteSpace(BoothConfig.Instance.Cookie))
             {
                 Console.WriteLine("Please paste in your cookie from browser.\n");
                 var cookie = Console.ReadLine();
-                BoothConfig.Instance.Cookie = cookie ?? string.Empty;
+                BoothConfig.Instance.Cookie = string.IsNullOrWhiteSpace(cookie) ? BoothConfig.AnonymousCookie : string.Empty;
                 BoothConfig.ConfigInstance.Save();
                 LoggerHelper.GlobalLogger.LogInformation("Cookie set");
             }
+
+            #endregion
+
+            #region Prep Booth Client
+
+            await BoothHttpClientManager.Setup(cancellationToken);
 
             #endregion
 
@@ -112,11 +121,6 @@ internal static class BoothDownloader
                 Console.Write("> ");
                 boothInput = Console.ReadLine();
             }
-
-            #region Prep Booth Client
-            await BoothHttpClientManager.Setup(cancellationToken);
-
-            #endregion
 
             var commands = boothInput?.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? [];
             var isLibraryPage = false;
@@ -163,10 +167,8 @@ internal static class BoothDownloader
                         var boothId = RegexStore.IdRegex.Matches(command).Select(x => x.Groups[1].Value).Distinct();
                         if (!boothId.Any())
                         {
-                            LoggerHelper.GlobalLogger.LogWarning("Could not parse booth IDs, assuming provided value is ID");
-                            boothId = [command];
+                            LoggerHelper.GlobalLogger.LogError("Could not parse booth IDs, {command}", command);
                         }
-
                         boothIds.AddRange(boothId);
                     }
                 }
@@ -179,6 +181,8 @@ internal static class BoothDownloader
                 if (BoothHttpClientManager.IsAnonymous)
                 {
                     LoggerHelper.GlobalLogger.LogError("Cannot download Paid Items with invalid cookie.");
+                    LoggerHelper.GlobalLogger.LogInformation("Continuing in 5 seconds...");
+                    Thread.Sleep(5000);
                 }
                 else
                 {
@@ -209,7 +213,8 @@ internal static class BoothDownloader
             }
             else
             {
-                LoggerHelper.GlobalLogger.LogInformation("No items found to download.");
+                LoggerHelper.GlobalLogger.LogError("No items found to download, exiting in 5 seconds");
+                Thread.Sleep(5000);
             }
         }, registerOption, unregisterOption, configOption, boothOption, outputDirectoryOption, maxRetriesOption, debugOption, cancellationTokenValueSource);
 
