@@ -212,7 +212,7 @@ internal static class BoothDownloader
             {
                 LoggerHelper.GlobalLogger.LogInformation("Grabbing the following booth Ids: {boothIds}", string.Join(';', boothIds));
 
-                items = await BoothPageParser.GetItemsAsync(boothIds, items, cancellationToken: cancellationToken);
+                items = await BoothPageParser.GetItemsAsync(boothIds, items, isGiftPage, cancellationToken: cancellationToken);
             }
 
             if (items.Count > 0)

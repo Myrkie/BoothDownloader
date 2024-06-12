@@ -145,7 +145,7 @@ public class BoothPageParser
     }
 
 
-    public static async Task<Dictionary<string, BoothItemAssets>> GetItemsAsync(IEnumerable<string> boothIds, Dictionary<string, BoothItemAssets>? incomingItems = null, CancellationToken cancellationToken = default)
+    public static async Task<Dictionary<string, BoothItemAssets>> GetItemsAsync(IEnumerable<string> boothIds, Dictionary<string, BoothItemAssets>? incomingItems = null, bool gotGiftPage = false, CancellationToken cancellationToken = default)
     {
         Dictionary<string, BoothItemAssets> items = incomingItems ?? [];
 
@@ -289,18 +289,25 @@ public class BoothPageParser
 
         if (hasAGiftedItem)
         {
-            LoggerHelper.GlobalLogger.LogInformation("Gift item detected when grabbing from item page, going through gifts to get downloadables.");
-            var giftItems = await BoothPageParser.GetPageItemsAsync("library/gifts", [], false, cancellationToken: cancellationToken);
-
-            foreach (var giftItem in giftItems)
+            if (gotGiftPage)
             {
-                if (boothIds.Contains(giftItem.Key))
+                LoggerHelper.GlobalLogger.LogInformation("Gift item detected when grabbing from item page, but already grabbed gifts previously.");
+            }
+            else
+            {
+                LoggerHelper.GlobalLogger.LogInformation("Gift item detected when grabbing from item page, going through gifts to get downloadables.");
+                var giftItems = await BoothPageParser.GetPageItemsAsync("library/gifts", [], false, cancellationToken: cancellationToken);
+
+                foreach (var giftItem in giftItems)
                 {
-                    foreach (var download in giftItem.Value.Downloadables)
+                    if (boothIds.Contains(giftItem.Key))
                     {
-                        if (!items[giftItem.Key].Downloadables.Contains(download))
+                        foreach (var download in giftItem.Value.Downloadables)
                         {
-                            items[giftItem.Key].Downloadables.Add(download);
+                            if (!items[giftItem.Key].Downloadables.Contains(download))
+                            {
+                                items[giftItem.Key].Downloadables.Add(download);
+                            }
                         }
                     }
                 }
