@@ -1,19 +1,42 @@
 // ==UserScript==
 // @name         BoothDownloader URL Handler
 // @namespace    http://tampermonkey.net/
-// @version      1.0.1
+// @version      1.1.0
 // @description  Adds url handler button to booth.pm
 // @author       Myrkur
 // @supportURL   https://github.com/Myrkie/BoothDownloader/
 // @match        https://*.booth.pm/*
 // @match        https://booth.pm/*
+// @match        https://boothplorer.com/avatar/*
 // @grant        GM_cookie
 // ==/UserScript==
 
 (function() {
     'use strict';
+    
+    function addButtonboothplorer(item, buttonText, targetUrl) {
+        let button = document.createElement('button');
+        button.innerText = buttonText;
 
-    function addButton(item, buttonText, targetUrl) {
+        button.classList.add(
+            'font-semibold', 'text-center',
+            'shadow-inner', 'hover:shadow-black/75',
+            'transition-all', 'bg-[#fc4d50]', 'text-white',
+            'rounded-full', 'px-4', 'py-1', 'flex',
+            'justify-center', 'gap-x-2', 'items-center'
+        );
+
+        button.addEventListener('click', function() {
+
+            let uriPath = new URL("boothdownloader://open/?id=" + targetUrl);
+
+            window.open(uriPath, '_self');
+        });
+
+        item.appendChild(button);
+    }
+
+    function addButtonbooth(item, buttonText, targetUrl) {
         let button = document.createElement('button');
         button.innerText = buttonText;
 
@@ -38,7 +61,7 @@
     }
 
 
-    function addTokenButton(item, buttonText) {
+    function addTokenButtonbooth(item, buttonText) {
         let button = document.createElement('button');
         button.innerText = buttonText;
 
@@ -75,34 +98,57 @@
 
     window.addEventListener('load', function() {
 
-        if (window.location.href.includes('accounts.booth.pm') || window.location.href.includes('manage.booth.pm'))
-        {
-            console.log("[BoothDownloader] constructing global navigation bar buttons");
-            let globalNav = document.querySelector('.global-nav.shrink');
-            if(globalNav)
+        if (window.location.href.includes('booth.pm')){
+            if (window.location.href.includes('accounts.booth.pm') || window.location.href.includes('manage.booth.pm'))
             {
-                addTokenButton(globalNav, 'Token')
-                addButton(globalNav, 'Owned', 'owned');
-                addButton(globalNav, 'Orders Only', 'orders');
-                addButton(globalNav, 'Gifts Only', 'gifts');
-                console.log("[BoothDownloader] added library buttons");
+                console.log("[BoothDownloader:booth] constructing global navigation bar buttons");
+                let globalNav = document.querySelector('.global-nav.shrink');
+                if(globalNav)
+                {
+                    addTokenButtonbooth(globalNav, 'Token')
+                    addButtonbooth(globalNav, 'Owned', 'owned');
+                    addButtonbooth(globalNav, 'Orders Only', 'orders');
+                    addButtonbooth(globalNav, 'Gifts Only', 'gifts');
+                    console.log("[BoothDownloader:booth] added library buttons");
+                }
+            }
+            if (window.location.href.includes('items') && !window.location.href.includes('account'))
+            {
+                console.log("[BoothDownloader:booth] Created Item button");
+                let item = document.querySelector('.item-search-box.flex.w-full.max-w-\\[600px\\].box-border');
+                if(item)
+                {
+                    var trimidbooth = window.location.href.lastIndexOf('/');
+
+                    var parsedidbooth = window.location.href.substring(trimidbooth + 1);
+
+                    addButtonbooth(item, 'Download', parsedidbooth);
+                    console.log("[BoothDownloader:booth] Parsed ID: " + parsedidbooth);
+                }
             }
         }
-        if (window.location.href.includes('booth.pm') && window.location.href.includes('items') && !window.location.href.includes('account'))
-        {
-            console.log("[BoothDownloader] Created Item button");
-            let item = document.querySelector('.item-search-box.flex.w-full.max-w-\\[600px\\].box-border');
-            if(item)
+
+        if (window.location.href.includes('boothplorer.com')){
+            if (window.location.href.includes('/avatar/'))
             {
-                var trimid = window.location.href.lastIndexOf('/');
+                console.log("[BoothDownloader:boothplorer] constructing global navigation bar buttons");
+                let globalNav = document.querySelector('div[class*="flex-grow"][class*="flex"][class*="flex-col"][class*="pt-3"][class*="md\\:pt-7"]');
+                if(globalNav)
+                {
+                    console.log("[BoothDownloader:boothplorer] added download button");
 
-                var parsedid = window.location.href.substring(trimid + 1);
+                    var trimidboothplorer = window.location.href.lastIndexOf('/');
 
-                addButton(item, 'Download', parsedid);
-                console.log("[BoothDownloader] Parsed ID: " + parsedid);
+                    var parsedidboothplorer = window.location.href.substring(trimidboothplorer + 1);
+
+                    addButtonboothplorer(globalNav, 'DOWNLOAD', parsedidboothplorer);
+                    console.log("[BoothDownloader:boothplorer] Parsed ID: " + parsedidboothplorer);
+                }
             }
+
         }
 
-        console.log("[BoothDownloader] everything...  seems to be in order");
+
+        console.log("[BoothDownloader:core] everything...  seems to be in order");
     });
 })();
