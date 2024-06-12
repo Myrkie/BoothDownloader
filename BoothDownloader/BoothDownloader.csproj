@@ -6,8 +6,8 @@
         <RootNamespace>BoothDownloader</RootNamespace>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
-        <AssemblyVersion>10.0.1</AssemblyVersion>
-        <FileVersion>10.0.1</FileVersion>
+        <AssemblyVersion>10.0.2</AssemblyVersion>
+        <FileVersion>10.0.2</FileVersion>
         <AssemblyName>BoothDownloader</AssemblyName>
         <PackageId>BoothDownloader</PackageId>
         <Authors>BoothDownloader</Authors>
@@ -47,6 +47,7 @@
 		<PackageReference Include="Serilog" Version="4.0.0" />
 		<PackageReference Include="Serilog.Extensions.Logging" Version="8.0.0" />
 		<PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
+		<PackageReference Include="Unidecode.NET" Version="2.1.0" />
     </ItemGroup>
 
 </Project>

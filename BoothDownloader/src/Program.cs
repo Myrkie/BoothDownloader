@@ -15,7 +15,6 @@ internal static class BoothDownloader
     private static async Task<int> Main(string[] args)
     {
         Console.Title = $"BoothDownloader - V{typeof(BoothDownloader).Assembly.GetName().Version}";
-        Console.OutputEncoding = Encoding.Unicode;
         LoggerHelper.GlobalLogger.LogInformation("Booth Downloader - V{Version}", typeof(BoothDownloader).Assembly.GetName().Version);
 
         Environment.CurrentDirectory = AppContext.BaseDirectory;

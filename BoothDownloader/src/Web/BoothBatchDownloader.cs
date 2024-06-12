@@ -6,6 +6,7 @@ using Discord.Common.Helpers;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using ShellProgressBar;
+using Unidecode.NET;
 
 namespace BoothDownloader.Web;
 
@@ -109,8 +110,9 @@ public static class BoothBatchDownloader
                     {
                         var resp = await BoothHttpClientManager.HttpClient.GetAsync(url, cancellationToken);
                         var redirectUrl = resp.Headers.Location!.ToString();
-                        var filename = new Uri(redirectUrl).Segments.Last();
-
+                        var encodedFilename = new Uri(redirectUrl).Segments.Last();
+                        var filename = Uri.UnescapeDataString(encodedFilename);
+                        
                         string uniqueFilename;
                         lock (binaryDirFiles)
                         {
@@ -120,7 +122,7 @@ public static class BoothBatchDownloader
 
                         var success = false;
                         var retryCount = 0;
-                        var child = downloadTaskBar.Spawn(10000, uniqueFilename, childOptions);
+                        var child = downloadTaskBar.Spawn(10000, uniqueFilename.Unidecode(), childOptions);
                         var childProgress = new ChildProgressBarProgress(child);
                         while (!success && retryCount < maxRetries)
                         {
