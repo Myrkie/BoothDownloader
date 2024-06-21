@@ -44,4 +44,102 @@ public static class Utils
 
         return newFilename;
     }
+
+    public static bool TryDeleteDirectoryWithRetry(string path, out Exception? exception)
+    {
+        exception = null;
+        while (true)
+        {
+            try
+            {
+                if (Directory.Exists(path))
+                {
+                    Directory.Delete(path, true);
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                exception = ex;
+                var userDecision = GetUserDecision($"Failed to delete directory: {path}. Error: {ex.Message}");
+                if (userDecision == UserDecision.Retry)
+                {
+                    continue;
+                }
+
+                if (userDecision == UserDecision.Skip)
+                {
+                    return false;
+                }
+
+                if (userDecision == UserDecision.Quit)
+                {
+                    Environment.Exit(0);
+                }
+            }
+        }
+    }
+
+    public static bool TryDeleteFileWithRetry(string path, out Exception? exception)
+    {
+        exception = null;
+        while (true)
+        {
+            try
+            {
+                if (File.Exists(path))
+                {
+                    File.Delete(path);
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                exception = ex;
+                var userDecision = GetUserDecision($"Failed to delete file: {path}. Error: {ex.Message}");
+                if (userDecision == UserDecision.Retry)
+                {
+                    continue;
+                }
+
+                if (userDecision == UserDecision.Skip)
+                {
+                    return false;
+                }
+
+                if (userDecision == UserDecision.Quit)
+                {
+                    Environment.Exit(0);
+                }
+            }
+        }
+    }
+
+    private static UserDecision GetUserDecision(string message)
+    {
+        Console.WriteLine($"{message}\nChoose an option: Retry (r), Skip (s), Quit (q)");
+        while (true)
+        {
+            var userInput = Console.ReadKey(intercept: true).Key;
+            switch (userInput)
+            {
+                case ConsoleKey.R:
+                    return UserDecision.Retry;
+                case ConsoleKey.S:
+                    return UserDecision.Skip;
+                case ConsoleKey.Q:
+                    return UserDecision.Quit;
+                default:
+                    Console.WriteLine("Invalid option. Please choose: Retry (r), Skip (s), Quit (q)");
+                    break;
+            }
+        }
+    }
+
+    private enum UserDecision
+    {
+        Retry,
+        Skip,
+        Quit
+    }
 }
