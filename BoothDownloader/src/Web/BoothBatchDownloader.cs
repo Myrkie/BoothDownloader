@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using System.IO.Compression;
 using BoothDownloader.Configuration;
 using BoothDownloader.Miscellaneous;
@@ -42,7 +42,11 @@ public static class BoothBatchDownloader
             if (Directory.Exists(Path.Combine(outputDir, boothItem.Key)))
             {
                 LoggerHelper.GlobalLogger.LogInformation("Directory already exists, deleting: {directoryName}", Path.Combine(outputDir, boothItem.Key));
-                Directory.Delete(Path.Combine(outputDir, boothItem.Key), true);
+                if (!Utils.TryDeleteDirectoryWithRetry(Path.Combine(outputDir, boothItem.Key), out var exception))
+                {
+                    LoggerHelper.GlobalLogger.LogError(exception, "Failed to delete directory: {directoryName}", Path.Combine(outputDir, boothItem.Key));
+                    continue;
+                }
             }
 
             var entryDir = Directory.CreateDirectory(Path.Combine(outputDir, boothItem.Key)).ToString();
@@ -170,7 +174,11 @@ public static class BoothBatchDownloader
                 if (File.Exists(zipFileName))
                 {
                     LoggerHelper.GlobalLogger.LogInformation("File already exists, deleting: {fileName}", zipFileName);
-                    File.Delete(zipFileName);
+                    if (!Utils.TryDeleteFileWithRetry(zipFileName, out var exception))
+                    {
+                        LoggerHelper.GlobalLogger.LogError(exception, "Failed to delete file: {fileName}", zipFileName);
+                        continue;
+                    }
                 }
 
                 LoggerHelper.GlobalLogger.LogInformation("Zipping");
@@ -178,7 +186,12 @@ public static class BoothBatchDownloader
                 LoggerHelper.GlobalLogger.LogInformation("Zipped");
 
 
-                Directory.Delete(entryDir, true);
+                if (!Utils.TryDeleteDirectoryWithRetry(entryDir, out var dirException))
+                {
+                    LoggerHelper.GlobalLogger.LogError(dirException, "Failed to delete directory after zipping: {directoryName}", entryDir);
+                    LoggerHelper.GlobalLogger.LogInformation("ENVFileDIR: {directoryPath}", entryDir);
+                    continue;
+                }
 
                 LoggerHelper.GlobalLogger.LogInformation("ENVFilePATH: {filePath}", zipFileName);
             }
