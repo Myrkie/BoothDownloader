@@ -75,6 +75,7 @@ public static class Utils
             try
             {
                 action();
+                return true;
             }
             catch (Exception ex)
             {

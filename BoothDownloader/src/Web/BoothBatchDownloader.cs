@@ -189,6 +189,7 @@ public static class BoothBatchDownloader
                 if (!Utils.TryDeleteDirectoryWithRetry(entryDir, out var dirException))
                 {
                     LoggerHelper.GlobalLogger.LogError(dirException, "Failed to delete directory after zipping: {directoryName}", entryDir);
+                    LoggerHelper.GlobalLogger.LogInformation("ENVFileDIR: {directoryPath}", entryDir);
                     continue;
                 }
 
