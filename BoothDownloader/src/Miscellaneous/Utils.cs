@@ -47,12 +47,24 @@ public static class Utils
 
     public static bool TryDeleteDirectoryWithRetry(string path, out Exception? exception)
     {
-        return TryActionWithRetry(actionDescription: $"delete directory: {path}", action: () => Directory.Delete(path, recursive: true), exception: out exception);
+        return TryActionWithRetry(actionDescription: $"delete directory: {path}",
+            action: () =>
+            {
+                if(Directory.Exists(path))
+                    Directory.Delete(path, recursive: true);
+            },
+            exception: out exception);
     }
 
     public static bool TryDeleteFileWithRetry(string path, out Exception? exception)
     {
-        return TryActionWithRetry(actionDescription: $"delete file: {path}", action: () => File.Delete(path), exception: out exception);
+        return TryActionWithRetry(actionDescription: $"delete file: {path}",
+            action: () =>
+            {
+                if(File.Exists(path))
+                    File.Delete(path);
+            },
+            exception: out exception);
     }
 
     private static bool TryActionWithRetry(string actionDescription, Action action, out Exception? exception)
