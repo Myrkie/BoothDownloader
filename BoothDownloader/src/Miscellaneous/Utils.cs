@@ -47,56 +47,27 @@ public static class Utils
 
     public static bool TryDeleteDirectoryWithRetry(string path, out Exception? exception)
     {
-        exception = null;
-        while (true)
-        {
-            try
-            {
-                if (Directory.Exists(path))
-                {
-                    Directory.Delete(path, true);
-                }
-                return true;
-            }
-            catch (Exception ex)
-            {
-                exception = ex;
-                var userDecision = GetUserDecision($"Failed to delete directory: {path}. Error: {ex.Message}");
-                if (userDecision == UserDecision.Retry)
-                {
-                    continue;
-                }
-
-                if (userDecision == UserDecision.Skip)
-                {
-                    return false;
-                }
-
-                if (userDecision == UserDecision.Quit)
-                {
-                    Environment.Exit(0);
-                }
-            }
-        }
+        return TryActionWithRetry(actionDescription: $"delete directory: {path}", action: () => Directory.Delete(path, recursive: true), exception: out exception);
     }
 
     public static bool TryDeleteFileWithRetry(string path, out Exception? exception)
+    {
+        return TryActionWithRetry(actionDescription: $"delete file: {path}", action: () => File.Delete(path), exception: out exception);
+    }
+
+    private static bool TryActionWithRetry(string actionDescription, Action action, out Exception? exception)
     {
         exception = null;
         while (true)
         {
             try
             {
-                if (File.Exists(path))
-                {
-                    File.Delete(path);
-                }
-                return true;
+                action();
             }
             catch (Exception ex)
             {
                 exception = ex;
-                var userDecision = GetUserDecision($"Failed to delete file: {path}. Error: {ex.Message}");
+                var userDecision = GetUserDecision($"Failed to {actionDescription}. Error: {ex.Message}");
                 if (userDecision == UserDecision.Retry)
                 {
                     continue;
@@ -114,6 +85,7 @@ public static class Utils
             }
         }
     }
+
 
     private static UserDecision GetUserDecision(string message)
     {
