@@ -86,8 +86,9 @@ public class BoothPageParser
         if (getJsons)
         {
             var itemsToGetJsonsOf = items.Where(x => !x.Value.TriedToGetJson);
+            int totalItems = itemsToGetJsonsOf.Count();
             int remainingItems = itemsToGetJsonsOf.Count();
-            using (var jsonProgressBar = new ProgressBar(remainingItems, $"Getting booth jsons ({remainingItems}/{itemsToGetJsonsOf.Count()} Left)", options))
+            using (var jsonProgressBar = new ProgressBar(remainingItems, $"Getting booth jsons ({remainingItems}/{totalItems} Left)", options))
             {
                 jsonProgressBar.WriteLine("Getting booth jsons");
                 if (!itemsToGetJsonsOf.Any())
@@ -136,7 +137,7 @@ public class BoothPageParser
                             {
                                 jsonProgressBar.Tick();
                                 remainingItems--;
-                                jsonProgressBar.Message = $"Getting booth jsons ({remainingItems}/{items.Count} Left)";
+                                jsonProgressBar.Message = $"Getting booth jsons ({remainingItems}/{totalItems} Left)";
                             }
                         }
                     })));
