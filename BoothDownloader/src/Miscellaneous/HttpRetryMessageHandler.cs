@@ -11,6 +11,6 @@ public class HttpRetryMessageHandler : DelegatingHandler
         CancellationToken cancellationToken) =>
         Policy
             .HandleResult<HttpResponseMessage>(x => x.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
-            .WaitAndRetryAsync(8, retryAttempt => TimeSpan.FromSeconds(1 * retryAttempt))
+            .WaitAndRetryAsync(8, retryAttempt => TimeSpan.FromSeconds(retryAttempt))
             .ExecuteAsync(() => base.SendAsync(request, cancellationToken));
 }
