@@ -24,7 +24,7 @@ internal static class BoothDownloader
     private static async Task<int> Main(string[] args)
     {
         Console.Title = Version;
-        LoggerHelper.GlobalLogger.LogInformation(Version);
+        LoggerHelper.GlobalLogger.LogInformation("{versionString}", Version);
         Environment.CurrentDirectory = AppContext.BaseDirectory;
         
 #if WINDOWS_BUILD
