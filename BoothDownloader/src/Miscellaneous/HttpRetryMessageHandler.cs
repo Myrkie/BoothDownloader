@@ -10,9 +10,7 @@ public class HttpRetryMessageHandler : DelegatingHandler
         HttpRequestMessage request,
         CancellationToken cancellationToken) =>
         Policy
-            .Handle<HttpRequestException>()
-            .Or<TaskCanceledException>()
-            .OrResult<HttpResponseMessage>(x => x.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+            .HandleResult<HttpResponseMessage>(x => x.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
             .WaitAndRetryAsync(8, retryAttempt => TimeSpan.FromSeconds(1 * retryAttempt))
             .ExecuteAsync(() => base.SendAsync(request, cancellationToken));
 }
