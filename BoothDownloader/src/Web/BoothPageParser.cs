@@ -14,67 +14,71 @@ public class BoothPageParser
     {
         Dictionary<string, BoothItemAssets> items = incomingItems ?? [];
 
-        int pageNumber = 1;
-        var htmlDoc = new HtmlDocument();
-
         var options = BoothProgressBarOptions.Layer1;
         options.CollapseWhenFinished = false;
 
-        using (var pageProgressBar = new ProgressBar(1, $"Going through pages (Page: {pageNumber})", options))
+        var pageCount = await GetPageCount(path, cancellationToken);
+        int remainingPages = pageCount;
+        using (var pageProgressBar = new ProgressBar(pageCount, $"Going through pages ({remainingPages}/{pageCount} Left)", options))
         {
-            pageProgressBar.WriteLine($"Getting items from {path}");
-            while (true)
+            await Task.WhenAll(Enumerable.Range(1, pageCount).Select(page => Task.Run(async () =>
             {
-                pageProgressBar.Message = $"Going through pages (Page: {pageNumber})";
-
-                string url = $"https://accounts.booth.pm/{path}?page={pageNumber}";
-                HttpResponseMessage? response = await BoothHttpClientManager.HttpClient.GetAsync(url, cancellationToken);
-                string content = await response.Content.ReadAsStringAsync(cancellationToken);
-
-                htmlDoc.LoadHtml(content);
-
-                var itemsList = htmlDoc.DocumentNode.Descendants("div")
-                    .Where(node => node.GetAttributeValue("class", string.Empty).Contains("mb-16"));
-
-                if (itemsList?.Any() == true)
+                try
                 {
-                    foreach (var item in itemsList)
+                    string url = $"https://accounts.booth.pm/{path}?page={page}";
+                    HttpResponseMessage? response = await BoothHttpClientManager.HttpClient.GetAsync(url, cancellationToken);
+                    string content = await response.Content.ReadAsStringAsync(cancellationToken);
+
+                    var htmlDoc = new HtmlDocument();
+                    htmlDoc.LoadHtml(content);
+
+                    var itemsList = htmlDoc.DocumentNode.Descendants("div")
+                        .Where(node => node.GetAttributeValue("class", string.Empty).Contains("mb-16"));
+
+                    if (itemsList?.Any() == true)
                     {
-                        var itemMatch = RegexStore.ItemRegex.Match(item.InnerHtml);
-                        if (itemMatch.Success)
+                        foreach (var item in itemsList)
                         {
-                            var boothId = itemMatch.Groups[1].Value;
-                            if (!items.ContainsKey(boothId))
+                            var itemMatch = RegexStore.ItemRegex.Match(item.InnerHtml);
+                            if (itemMatch.Success)
                             {
-                                items.Add(boothId, new BoothItemAssets());
-                            }
-
-                            if (!items[boothId].InnerHtml.Contains(item.InnerHtml))
-                            {
-                                items[boothId].InnerHtml.Add(item.InnerHtml);
-                            }
-
-                            var downloadCollection = RegexStore.DownloadRegex.Matches(item.InnerHtml).Select(match => match.Value);
-
-                            foreach (var download in downloadCollection)
-                            {
-                                if (!string.IsNullOrWhiteSpace(download) && !items[boothId].Downloadables.Contains(download))
+                                lock (items)
                                 {
-                                    items[boothId].Downloadables.Add(download);
+                                    var boothId = itemMatch.Groups[1].Value;
+                                    if (!items.ContainsKey(boothId))
+                                    {
+                                        items.Add(boothId, new BoothItemAssets());
+                                    }
+
+                                    if (!items[boothId].InnerHtml.Contains(item.InnerHtml))
+                                    {
+                                        items[boothId].InnerHtml.Add(item.InnerHtml);
+                                    }
+
+                                    var downloadCollection = RegexStore.DownloadRegex.Matches(item.InnerHtml).Select(match => match.Value);
+
+                                    foreach (var download in downloadCollection)
+                                    {
+                                        if (!string.IsNullOrWhiteSpace(download) && !items[boothId].Downloadables.Contains(download))
+                                        {
+                                            items[boothId].Downloadables.Add(download);
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
                 }
-                else
+                finally
                 {
-                    break;
+                    lock (pageProgressBar)
+                    {
+                        pageProgressBar.Tick();
+                        remainingPages--;
+                        pageProgressBar.Message = $"Going through pages ({remainingPages}/{pageCount} Left)";
+                    }
                 }
-
-                pageNumber++;
-            }
-
-            pageProgressBar.Tick();
+            })));
         }
 
         Console.WriteLine();
@@ -347,5 +351,36 @@ public class BoothPageParser
         }
 
         return boothJsonItem;
+    }
+
+    private static async Task<int> GetPageCount(string path, CancellationToken cancellationToken = default)
+    {
+        var pageCount = 1;
+
+        string url = $"https://accounts.booth.pm/{path}";
+        HttpResponseMessage? response = await BoothHttpClientManager.HttpClient.GetAsync(url, cancellationToken);
+        string content = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        var htmlDoc = new HtmlDocument();
+        htmlDoc.LoadHtml(content);
+
+        HtmlNode node = htmlDoc.DocumentNode.SelectSingleNode("//a[@class='nav-item last-page']");
+        if (node != null)
+        {
+            string hrefValue = node.GetAttributeValue("href", "");
+            if (!string.IsNullOrWhiteSpace(hrefValue))
+            {
+                var split = hrefValue.Split("page=");
+                if (split.Length > 1)
+                {
+                    if (int.TryParse(split[1], out int result))
+                    {
+                        pageCount = result;
+                    }
+                }
+            }
+        }
+
+        return pageCount;
     }
 }
