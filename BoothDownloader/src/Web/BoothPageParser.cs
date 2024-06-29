@@ -100,9 +100,9 @@ public class BoothPageParser
                             items[item.Key].BoothPageJson = itemPage;
                             AddItemsFromJson(items[item.Key].BoothPageJson, item.Key, ref items);
                         }
-                        catch (HttpRequestException)
+                        catch (HttpRequestException ex)
                         {
-                            jsonProgressBar.WriteLine($"Failed to get page for {item.Key}. Possibly deleted. Grabbing image from preview.");
+                            jsonProgressBar.WriteLine($"Failed to get page for {item.Key} (Status Code: {((int?)ex.StatusCode)}). Possibly deleted. Grabbing image/information from preview.");
 
                             var htmlDoc = new HtmlDocument();
 
