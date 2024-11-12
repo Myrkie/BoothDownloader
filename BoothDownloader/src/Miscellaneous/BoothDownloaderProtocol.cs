@@ -86,6 +86,7 @@ public static class BoothDownloaderProtocol
     private const string BoothProtocolPrefix = "boothdownloader://open/";
     private const string TokenArguement = "token";
     private const string IdArguement = "id";
+    private const string PathArguement = "path";
 
     public static string[] HandleProtocol(string[] args)
     {
@@ -106,6 +107,7 @@ public static class BoothDownloaderProtocol
 
                 string? token = query[TokenArguement];
                 string? id = query[IdArguement];
+                string? openpath = query[PathArguement];
                 if (token != null)
                 {
                     BoothConfig.Setup(BoothConfig.DefaultPath);
@@ -113,6 +115,18 @@ public static class BoothDownloaderProtocol
                     BoothConfig.ConfigInstance.Save();
                     LoggerHelper.GlobalLogger.LogInformation("Cookie set from Protocol");
 
+                    if (id == null)
+                    {
+                        Exit();
+                    }
+                }
+
+                if (openpath != null)
+                {
+                    LoggerHelper.GlobalLogger.LogInformation("Protocol requested to open download path");
+#if WINDOWS_BUILD
+                    Utils.OpenDownloadFolder("BoothDownloaderOut");
+#endif
                     if (id == null)
                     {
                         Exit();

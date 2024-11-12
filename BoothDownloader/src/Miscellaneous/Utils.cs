@@ -1,6 +1,9 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using ShellProgressBar;
 using BoothDownloader.Web;
+using Discord.Common.Helpers;
+using Microsoft.Extensions.Logging;
 
 namespace BoothDownloader.Miscellaneous;
 
@@ -127,4 +130,24 @@ public static class Utils
         Skip,
         Quit
     }
+    [Conditional("WINDOWS_BUILD")]
+    internal static void OpenDownloadFolder(string folderPath)
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = "explorer.exe",
+            Arguments = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, folderPath),
+            UseShellExecute = true,
+            Verb = "runas"
+        };
+        try
+        {
+            Process.Start(startInfo);
+        }
+        catch (System.ComponentModel.Win32Exception ex)
+        {
+            LoggerHelper.GlobalLogger.LogError("Error: " + ex.Message);
+        }
+    }
+
 }
