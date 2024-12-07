@@ -110,7 +110,7 @@ internal static class BoothDownloader
             {
                 Console.WriteLine("Please paste in your cookie from browser.\n");
                 var cookie = Console.ReadLine();
-                BoothConfig.Instance.Cookie = string.IsNullOrWhiteSpace(cookie) ? BoothConfig.AnonymousCookie : string.Empty;
+                BoothConfig.Instance.Cookie = string.IsNullOrWhiteSpace(cookie) ? BoothConfig.AnonymousCookie : cookie;
                 BoothConfig.ConfigInstance.Save();
                 LoggerHelper.GlobalLogger.LogInformation("Cookie set");
             }
