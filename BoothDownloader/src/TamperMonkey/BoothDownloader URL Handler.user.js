@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         BoothDownloader URL Handler
 // @namespace    http://tampermonkey.net/
-// @version      1.1.4
+// @version      1.1.5
 // @updateURL    https://raw.githubusercontent.com/Myrkie/BoothDownloader/master/BoothDownloader/src/TamperMonkey/BoothDownloader%20URL%20Handler.user.js
 // @downloadURL  https://raw.githubusercontent.com/Myrkie/BoothDownloader/master/BoothDownloader/src/TamperMonkey/BoothDownloader%20URL%20Handler.user.js
 // @description  Adds url handler button to booth.pm
@@ -55,7 +55,7 @@
             if (window.location.href.includes('/avatar/'))
             {
                 console.log("[BoothDownloader:boothplorer] constructing global navigation bar buttons");
-                let globalNavboothplorer = document.querySelector('div[class*="flex-col"][class*="flex-wrap"][class*="gap-y-4"][class*="2xl\\:gap-y-0"][class*="2xl\\:flex-row"][class*="2xl\\:gap-x-4"]');
+                let globalNavboothplorer = document.querySelector('.flex.flex-col.flex-wrap.justify-center.gap-4');
                 if(globalNavboothplorer)
                 {
                     console.log("[BoothDownloader:boothplorer] added download button");
@@ -77,10 +77,9 @@
         button.innerText = buttonText;
 
         button.classList.add(
-            'font-semibold', 'text-center',
-            'shadow-inner', 'hover:shadow-black/75',
-            'transition-all', 'bg-[#fc4d50]', 'text-white',
-            'rounded-full', 'px-4', 'py-1', 'flex',
+            'shadow-inner', 'hover:shadow-black/50',
+            'group', 'bg-[#fc4d50]', 'text-white',
+            'rounded-md', 'px-4', 'py-1', 'flex',
             'justify-center', 'gap-x-2', 'items-center'
         );
 
