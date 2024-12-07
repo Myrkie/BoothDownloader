@@ -11,7 +11,7 @@ public static class BoothHttpClientManager
     private const string UrlAccountSettings = "https://accounts.booth.pm/settings";
     private const string UrlItemPage = "https://booth.pm/en/items";
 
-    private static HttpRetryMessageHandler HttpHandler => new(new() { AllowAutoRedirect = false });
+    private static HttpRetryMessageHandler HttpHandler => new(new() { AllowAutoRedirect = true });
 
     public static HttpClient AnonymousHttpClient { get; } = new(HttpHandler)
     {

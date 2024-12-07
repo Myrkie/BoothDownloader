@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         BoothDownloader URL Handler
 // @namespace    http://tampermonkey.net/
-// @version      1.1.3
+// @version      1.1.4
 // @updateURL    https://raw.githubusercontent.com/Myrkie/BoothDownloader/master/BoothDownloader/src/TamperMonkey/BoothDownloader%20URL%20Handler.user.js
 // @downloadURL  https://raw.githubusercontent.com/Myrkie/BoothDownloader/master/BoothDownloader/src/TamperMonkey/BoothDownloader%20URL%20Handler.user.js
 // @description  Adds url handler button to booth.pm
@@ -23,7 +23,7 @@
             if (window.location.href.includes('accounts.booth.pm') || window.location.href.includes('manage.booth.pm'))
             {
                 console.log("[BoothDownloader:booth] constructing global navigation bar buttons");
-                let globalNavbooth = document.querySelector('.global-nav.shrink');
+                let globalNavbooth = document.querySelector('div.flex.flex-terminal.items-center.shrink');
                 if(globalNavbooth)
                 {
                     addTokenButtonbooth(globalNavbooth, 'Token')
