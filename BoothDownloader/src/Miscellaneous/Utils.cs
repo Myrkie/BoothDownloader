@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.IO.Compression;
 using System.Diagnostics;
 using ShellProgressBar;
 using BoothDownloader.Web;
@@ -59,7 +60,7 @@ public static class Utils
             exception: out exception);
     }
 
-    public static bool TryDeleteFileWithRetry(string path, out Exception? exception)
+    private static bool TryDeleteFileWithRetry(string path, out Exception? exception)
     {
         return TryActionWithRetry(actionDescription: $"delete file: {path}",
             action: () =>
@@ -150,4 +151,29 @@ public static class Utils
         }
     }
 
+    internal static void AutoZip(string entryDirectory)
+    {
+        var zipFileName = entryDirectory + ".zip";
+        if (File.Exists(zipFileName))
+        {
+            LoggerHelper.GlobalLogger.LogInformation("File already exists, deleting: {fileName}", zipFileName);
+            if (!TryDeleteFileWithRetry(zipFileName, out var exception))
+            {
+                LoggerHelper.GlobalLogger.LogError(exception, "Failed to delete file: {fileName}", zipFileName);
+            }
+        }
+
+        LoggerHelper.GlobalLogger.LogInformation("Zipping");
+        ZipFile.CreateFromDirectory(entryDirectory, zipFileName);
+        LoggerHelper.GlobalLogger.LogInformation("Zipped");
+
+
+        if (!TryDeleteDirectoryWithRetry(entryDirectory, out var dirException))
+        {
+            LoggerHelper.GlobalLogger.LogError(dirException, "Failed to delete directory after zipping: {directoryName}", entryDirectory);
+            LoggerHelper.GlobalLogger.LogInformation("ENVFileDIR: {directoryPath}", entryDirectory);
+        }
+
+        LoggerHelper.GlobalLogger.LogInformation("ENVFilePATH: {filePath}", zipFileName);
+    }
 }

@@ -87,7 +87,7 @@ internal static class BoothDownloader
         {
             if (debug)
             {
-                LoggerHelper.GlobalLogger.LogInformation("Arguements:\n{args}", string.Join('\n', args));
+                LoggerHelper.GlobalLogger.LogInformation("Arguments:\n{args}", string.Join('\n', args));
             }
 
             if (registerProtocol)
@@ -135,37 +135,36 @@ internal static class BoothDownloader
             var isGiftPage = false;
             var boothIds = new List<string>();
 
-            if(commands != null && commands.Length > 0)
+            if(commands.Length > 0)
             {
                 foreach (var command in commands)
                 {
                     if (string.IsNullOrWhiteSpace(command))
                     {
-                        continue;
                     }
-                    else if (command.Equals("https://accounts.booth.pm/library", StringComparison.OrdinalIgnoreCase) == true
-                     || command.Equals("library", StringComparison.OrdinalIgnoreCase) == true
-                     || command.Equals("libraries", StringComparison.OrdinalIgnoreCase) == true)
+                    else if (command.Equals("https://accounts.booth.pm/library", StringComparison.OrdinalIgnoreCase)
+                     || command.Equals("library", StringComparison.OrdinalIgnoreCase)
+                     || command.Equals("libraries", StringComparison.OrdinalIgnoreCase))
                     {
                         isLibraryPage = true;
                     }
-                    else if (command.Equals("https://accounts.booth.pm/library/gifts", StringComparison.OrdinalIgnoreCase) == true
-                          || command.Equals("gift", StringComparison.OrdinalIgnoreCase) == true
-                          || command.Equals("gifts", StringComparison.OrdinalIgnoreCase) == true)
+                    else if (command.Equals("https://accounts.booth.pm/library/gifts", StringComparison.OrdinalIgnoreCase)
+                          || command.Equals("gift", StringComparison.OrdinalIgnoreCase)
+                          || command.Equals("gifts", StringComparison.OrdinalIgnoreCase))
                     {
                         isGiftPage = true;
                     }
-                    else if (command.Equals("https://accounts.booth.pm/orders", StringComparison.OrdinalIgnoreCase) == true
-                          || command.Equals("orders", StringComparison.OrdinalIgnoreCase) == true
-                          || command.Equals("order", StringComparison.OrdinalIgnoreCase) == true
-                          || command.Equals("purchase", StringComparison.OrdinalIgnoreCase) == true
-                          || command.Equals("purchases", StringComparison.OrdinalIgnoreCase) == true)
+                    else if (command.Equals("https://accounts.booth.pm/orders", StringComparison.OrdinalIgnoreCase)
+                          || command.Equals("orders", StringComparison.OrdinalIgnoreCase)
+                          || command.Equals("order", StringComparison.OrdinalIgnoreCase)
+                          || command.Equals("purchase", StringComparison.OrdinalIgnoreCase)
+                          || command.Equals("purchases", StringComparison.OrdinalIgnoreCase))
                     {
                         LoggerHelper.GlobalLogger.LogInformation("Orders Page now uses Library!");
                         isLibraryPage = true;
                     }
-                    else if (command.Equals("own", StringComparison.OrdinalIgnoreCase) == true
-                          || command.Equals("owned", StringComparison.OrdinalIgnoreCase) == true)
+                    else if (command.Equals("own", StringComparison.OrdinalIgnoreCase)
+                          || command.Equals("owned", StringComparison.OrdinalIgnoreCase))
                     {
                         isLibraryPage = true;
                         isGiftPage = true;
@@ -173,11 +172,12 @@ internal static class BoothDownloader
                     else
                     {
                         var boothId = RegexStore.IdRegex.Matches(command).Select(x => x.Groups[1].Value).Distinct();
-                        if (!boothId.Any())
+                        var enumerable = boothId as string[] ?? boothId.ToArray();
+                        if (!enumerable.Any())
                         {
                             LoggerHelper.GlobalLogger.LogError("Could not parse booth IDs, {command}", command);
                         }
-                        boothIds.AddRange(boothId);
+                        boothIds.AddRange(enumerable);
                     }
                 }
             }
@@ -223,10 +223,13 @@ internal static class BoothDownloader
             {
                 LoggerHelper.GlobalLogger.LogError("No items found to download, exiting in 5 seconds");
                 Thread.Sleep(5000);
+                Environment.Exit(0);
             }
         }, registerOption, unregisterOption, configOption, boothOption, outputDirectoryOption, maxRetriesOption, debugOption, cancellationTokenValueSource);
 
-        var commandLineBuilder = new CommandLineBuilder(rootCommand);
+        var commandLineBuilder = new CommandLineBuilder(rootCommand)
+            .UseHelp();
+
         var built = commandLineBuilder.Build();
         return await built.InvokeAsync(args);
     }

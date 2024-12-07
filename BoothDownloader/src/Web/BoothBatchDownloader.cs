@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.IO.Compression;
 using BoothDownloader.Configuration;
 using BoothDownloader.Miscellaneous;
 using Discord.Common.Helpers;
@@ -166,34 +165,9 @@ public static class BoothBatchDownloader
                 }
             }
 
-            Console.WriteLine();
-
             if (BoothConfig.Instance.AutoZip)
             {
-                var zipFileName = entryDir + ".zip";
-                if (File.Exists(zipFileName))
-                {
-                    LoggerHelper.GlobalLogger.LogInformation("File already exists, deleting: {fileName}", zipFileName);
-                    if (!Utils.TryDeleteFileWithRetry(zipFileName, out var exception))
-                    {
-                        LoggerHelper.GlobalLogger.LogError(exception, "Failed to delete file: {fileName}", zipFileName);
-                        continue;
-                    }
-                }
-
-                LoggerHelper.GlobalLogger.LogInformation("Zipping");
-                ZipFile.CreateFromDirectory(entryDir, zipFileName);
-                LoggerHelper.GlobalLogger.LogInformation("Zipped");
-
-
-                if (!Utils.TryDeleteDirectoryWithRetry(entryDir, out var dirException))
-                {
-                    LoggerHelper.GlobalLogger.LogError(dirException, "Failed to delete directory after zipping: {directoryName}", entryDir);
-                    LoggerHelper.GlobalLogger.LogInformation("ENVFileDIR: {directoryPath}", entryDir);
-                    continue;
-                }
-
-                LoggerHelper.GlobalLogger.LogInformation("ENVFilePATH: {filePath}", zipFileName);
+                Utils.AutoZip(entryDir);
             }
             else
             {
