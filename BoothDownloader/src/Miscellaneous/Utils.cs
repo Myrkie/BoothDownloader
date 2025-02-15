@@ -134,10 +134,17 @@ public static class Utils
     [Conditional("WINDOWS_BUILD")]
     internal static void OpenDownloadFolder(string folderPath)
     {
+
+        var downloadPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, folderPath);
+        if (!Directory.Exists(folderPath))
+        {
+            downloadPath = AppDomain.CurrentDomain.BaseDirectory;
+        }
+        
         var startInfo = new ProcessStartInfo
         {
             FileName = "explorer.exe",
-            Arguments = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, folderPath),
+            Arguments = downloadPath,
             UseShellExecute = true,
             Verb = "runas"
         };

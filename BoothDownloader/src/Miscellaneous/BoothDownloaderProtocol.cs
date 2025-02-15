@@ -146,8 +146,8 @@ public static class BoothDownloaderProtocol
 
     private static void Exit()
     {
-        LoggerHelper.GlobalLogger.LogInformation("Exiting in 5 seconds...");
-        Thread.Sleep(5000);
+        LoggerHelper.GlobalLogger.LogInformation("Exiting in 3 seconds...");
+        Thread.Sleep(3000);
         Environment.Exit(0);
     }
 }
