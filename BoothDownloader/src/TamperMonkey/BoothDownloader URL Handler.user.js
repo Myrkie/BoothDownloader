@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         BoothDownloader URL Handler
 // @namespace    http://tampermonkey.net/
-// @version      1.1.6
+// @version      1.1.7
 // @updateURL    https://raw.githubusercontent.com/Myrkie/BoothDownloader/master/BoothDownloader/src/TamperMonkey/BoothDownloader%20URL%20Handler.user.js
 // @downloadURL  https://raw.githubusercontent.com/Myrkie/BoothDownloader/master/BoothDownloader/src/TamperMonkey/BoothDownloader%20URL%20Handler.user.js
 // @description  Adds url handler button to booth.pm
@@ -17,7 +17,7 @@
 (function() {
     'use strict';
     const boothdownloaderOpen = "boothdownloader://open/"
-    
+
     window.addEventListener('load', function() {
         logMessage("core", "starting up...");
 //#region boothpm
@@ -36,7 +36,7 @@
                     logMessage("booth", "added library buttons");
                 }
             }
-            
+
             if (window.location.href.includes('items') && !window.location.href.includes('account'))
             {
                 logMessage("booth", "Created Item button");
@@ -130,7 +130,7 @@
         item.appendChild(button);
     }
 //#endregion
-    
+
 //#region boothplorerbuttons
     function addButtonboothplorer(item, buttonText, targetUrl) {
         let button = document.createElement('button');
@@ -153,7 +153,7 @@
         item.appendChild(button);
     }
 //#endregion
-    
+
 //#region misc
     function logMessage(path, message) {
         const timestamp = new Date().toISOString();
@@ -175,7 +175,7 @@
 
         button.addEventListener('click', function() {
             // this is done on click as booth does a token exchange after load
-            // and getting the cookie before load completion returns an invalid cooking
+            // and getting the cookie before load completion returns an invalid cookie
             GM_cookie.list(
                 { url: "https://*.booth.pm/*", name: "_plaza_session_nktz7u" },
                 (cookie, error) => {
