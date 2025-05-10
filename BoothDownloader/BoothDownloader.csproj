@@ -6,8 +6,8 @@
         <RootNamespace>BoothDownloader</RootNamespace>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
-        <AssemblyVersion>10.0.7</AssemblyVersion>
-        <FileVersion>10.0.7</FileVersion>
+        <AssemblyVersion>10.0.8</AssemblyVersion>
+        <FileVersion>10.0.8</FileVersion>
         <AssemblyName>BoothDownloader</AssemblyName>
         <PackageId>BoothDownloader</PackageId>
         <Authors>BoothDownloader</Authors>
@@ -17,7 +17,7 @@
         <UseSystemResourceKeys>true</UseSystemResourceKeys>
         <InvariantGlobalization>true</InvariantGlobalization>
         <StripSymbols>true</StripSymbols>
-        <DebuggerSupport>false</DebuggerSupport>
+        <DebugType>pdbonly</DebugType>
         <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
         <PublishLzmaCompressed>true</PublishLzmaCompressed>
         <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
