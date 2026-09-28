@@ -118,13 +118,11 @@ public static class BoothHttpClientManager
         var responseString = await response.Content.ReadAsStringAsync(cancellationToken);
 
         var mediaType = response.Content.Headers.ContentType?.MediaType;
-        if (mediaType == null
-            || (!mediaType.Equals("application/json", StringComparison.OrdinalIgnoreCase)
-                && !mediaType.EndsWith("+json", StringComparison.OrdinalIgnoreCase)))
+        if (mediaType == null || (!mediaType.Equals("application/json", StringComparison.OrdinalIgnoreCase)
+                                  && !mediaType.EndsWith("+json", StringComparison.OrdinalIgnoreCase)))
         {
             throw new HttpRequestException(
-                $"BOOTH returned {mediaType ?? "an unknown content type"} instead of JSON for item {id}.",
-                null,
+                $"BOOTH returned {mediaType ?? "an unknown content type"} instead of JSON for item {id}.", null,
                 response.StatusCode);
         }
 

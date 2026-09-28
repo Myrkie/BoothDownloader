@@ -39,7 +39,7 @@ public static class BoothBatchDownloader
         if (force)
         {
             LoggerHelper.GlobalLogger.LogWarning(
-                "Forced download enabled. Every selected item will be downloaded again; avoid this for large libraries.");
+                "Forced download enabled. Every selected item will be downloaded again; avoid this for large libraries");
         }
 
         foreach (var boothItem in boothItems)
@@ -54,7 +54,7 @@ public static class BoothBatchDownloader
             {
                 PreserveExistingMetadata(outputDir, boothId, currentItem);
                 LoggerHelper.GlobalLogger.LogWarning(
-                    "Existing item {boothId} has no download cache. Adopting it without downloading; use --force with this item if you know it is outdated.",
+                    "Existing item {BoothId} has no download cache. Adopting it without downloading; use --force with this item if you know it is outdated",
                     boothId);
                 cache.Items[boothId] = currentItem;
                 cache.Save(outputDir);
@@ -63,14 +63,14 @@ public static class BoothBatchDownloader
 
             if (change == DownloadChange.None)
             {
-                LoggerHelper.GlobalLogger.LogInformation("Skipping unchanged item {boothId}", boothId);
+                LoggerHelper.GlobalLogger.LogInformation("Skipping unchanged item {BoothId}", boothId);
                 cache.Items[boothId] = currentItem;
                 cache.Save(outputDir);
                 continue;
             }
 
             LoggerHelper.GlobalLogger.LogInformation(
-                "Updating {boothId}: {change}", boothId, GetChangeDescription(change));
+                "Updating {BoothId}: {Change}", boothId, GetChangeDescription(change));
 
             var entryDir = PrepareEntryDirectory(outputDir, boothId, change);
             var operationSucceeded = await ApplyChangeAsync(
@@ -84,7 +84,7 @@ public static class BoothBatchDownloader
             if (!operationSucceeded)
             {
                 LoggerHelper.GlobalLogger.LogError(
-                    "Update for {boothId} was incomplete. Its cache was not changed, so it will be retried next time.",
+                    "Update for {BoothId} was incomplete. Its cache was not changed, so it will be retried next time",
                     boothId);
                 continue;
             }
@@ -103,9 +103,7 @@ public static class BoothBatchDownloader
         }
     }
 
-    private static BoothDownloadCacheItem CreateCurrentSnapshot(
-        BoothItemAssets item,
-        BoothDownloadCacheItem? cachedItem)
+    private static BoothDownloadCacheItem CreateCurrentSnapshot(BoothItemAssets item, BoothDownloadCacheItem? cachedItem)
     {
         var currentItem = BoothDownloadCacheItem.From(item);
 
@@ -133,22 +131,16 @@ public static class BoothBatchDownloader
         return currentItem;
     }
 
-    private static Dictionary<string, string> CopyKnownFiles(
-        IEnumerable<string> currentUrls,
+    private static Dictionary<string, string> CopyKnownFiles(IEnumerable<string> currentUrls,
         Dictionary<string, string> cachedFiles)
     {
         var currentUrlSet = currentUrls.ToHashSet(StringComparer.Ordinal);
-        return cachedFiles
-            .Where(file => currentUrlSet.Contains(file.Key))
+        return cachedFiles.Where(file => currentUrlSet.Contains(file.Key))
             .ToDictionary(file => file.Key, file => file.Value, StringComparer.Ordinal);
     }
 
-    private static DownloadChange GetChange(
-        string outputDirectory,
-        string boothId,
-        BoothDownloadCacheItem currentItem,
-        BoothDownloadCacheItem? cachedItem,
-        bool force)
+    private static DownloadChange GetChange(string outputDirectory, string boothId, BoothDownloadCacheItem currentItem,
+        BoothDownloadCacheItem? cachedItem, bool force)
     {
         if (force || !OutputExists(outputDirectory, boothId))
         {
@@ -182,10 +174,7 @@ public static class BoothBatchDownloader
             : Directory.Exists(Path.Combine(outputDirectory, boothId));
     }
 
-    private static void PreserveExistingMetadata(
-        string outputDirectory,
-        string boothId,
-        BoothDownloadCacheItem currentItem)
+    private static void PreserveExistingMetadata(string outputDirectory, string boothId, BoothDownloadCacheItem currentItem)
     {
         if (!currentItem.ItemPageUnavailable)
         {
@@ -275,10 +264,7 @@ public static class BoothBatchDownloader
         }
     }
 
-    private static string PrepareEntryDirectory(
-        string outputDirectory,
-        string boothId,
-        DownloadChange change)
+    private static string PrepareEntryDirectory(string outputDirectory, string boothId, DownloadChange change)
     {
         var entryPath = Path.Combine(outputDirectory, boothId);
 
@@ -308,12 +294,8 @@ public static class BoothBatchDownloader
         return Directory.CreateDirectory(entryPath).ToString();
     }
 
-    private static async Task<bool> ApplyChangeAsync(
-        BoothDownloadCacheItem currentItem,
-        BoothDownloadCacheItem? cachedItem,
-        string entryDir,
-        int maxRetries,
-        DownloadChange change,
+    private static async Task<bool> ApplyChangeAsync(BoothDownloadCacheItem currentItem,
+        BoothDownloadCacheItem? cachedItem, string entryDir, int maxRetries, DownloadChange change,
         CancellationToken cancellationToken)
     {
         WriteMetadata(entryDir, currentItem);
@@ -349,21 +331,14 @@ public static class BoothBatchDownloader
 
         var childOptions = BoothProgressBarOptions.Layer3;
         childOptions.CollapseWhenFinished = true;
-
-        using var progressBar = new ProgressBar(
-            imageUrls.Count + downloadUrls.Count,
-            "Overall Progress",
-            options);
+        using var progressBar = new ProgressBar(imageUrls.Count + downloadUrls.Count, "Overall Progress", options);
 
         var allTasks = new List<Task>();
         var failedDownloads = 0;
 
-        var entryDirFiles = new ConcurrentBag<string>(
-            Directory.EnumerateFiles(entryDir).Select(Path.GetFileName)!);
+        var entryDirFiles = new ConcurrentBag<string>(Directory.EnumerateFiles(entryDir).Select(Path.GetFileName)!);
         var remainingImages = imageUrls.Count;
-        var imageTaskBar = progressBar.Spawn(
-            imageUrls.Count,
-            $"Images ({remainingImages}/{imageUrls.Count} Left)",
+        var imageTaskBar = progressBar.Spawn(imageUrls.Count, $"Images ({remainingImages}/{imageUrls.Count} Left)",
             parentOptions);
 
         allTasks.AddRange(imageUrls.Select(url => Task.Run(async () =>
@@ -409,10 +384,8 @@ public static class BoothBatchDownloader
             var binaryDirFiles = new ConcurrentBag<string>(
                 Directory.EnumerateFiles(binaryDir).Select(Path.GetFileName)!);
             var remainingDownloads = downloadUrls.Count;
-            var downloadTaskBar = progressBar.Spawn(
-                downloadUrls.Count,
-                $"Downloads ({remainingDownloads}/{downloadUrls.Count} Left)",
-                parentOptions);
+            var downloadTaskBar = progressBar.Spawn(downloadUrls.Count,
+                $"Downloads ({remainingDownloads}/{downloadUrls.Count} Left)", parentOptions);
 
             allTasks.AddRange(downloadUrls.Select(url => Task.Run(async () =>
             {

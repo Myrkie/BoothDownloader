@@ -4,7 +4,7 @@ namespace BoothDownloader.Web;
 
 internal sealed class BoothDownloadCache
 {
-    internal const string FileName = "_BoothDownloadCache.json";
+    private const string FileName = "_BoothDownloadCache.json";
 
     [JsonProperty(nameof(Version))]
     public int Version { get; set; } = 1;

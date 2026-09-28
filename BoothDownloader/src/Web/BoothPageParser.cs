@@ -82,7 +82,7 @@ public class BoothPageParser
 
         Console.WriteLine();
 
-        if (getJsons)
+        if (!getJsons) return items;
         {
             var itemsToGetJsonsOf = items.Where(x => !x.Value.TriedToGetJson);
             int totalItems = itemsToGetJsonsOf.Count();
@@ -335,28 +335,24 @@ public class BoothPageParser
             }
         }
 
-        if (hasAGiftedItem)
+        if (!hasAGiftedItem) return items;
+        if (gotGiftPage)
         {
-            if (gotGiftPage)
-            {
-                LoggerHelper.GlobalLogger.LogInformation("Gift item detected when grabbing from item page, but already grabbed gifts previously.");
-            }
-            else
-            {
-                LoggerHelper.GlobalLogger.LogInformation("Gift item detected when grabbing from item page, going through gifts to get downloadables.");
-                var giftItems = await BoothPageParser.GetPageItemsAsync("library/gifts", [], false, cancellationToken: cancellationToken);
+            LoggerHelper.GlobalLogger.LogInformation("Gift item detected when grabbing from item page, but already grabbed gifts previously.");
+        }
+        else
+        {
+            LoggerHelper.GlobalLogger.LogInformation("Gift item detected when grabbing from item page, going through gifts to get downloadables.");
+            var giftItems = await BoothPageParser.GetPageItemsAsync("library/gifts", [], false, cancellationToken: cancellationToken);
 
-                foreach (var giftItem in giftItems)
+            foreach (var giftItem in giftItems)
+            {
+                if (!boothIds.Contains(giftItem.Key)) continue;
+                foreach (var download in giftItem.Value.Downloadables)
                 {
-                    if (boothIds.Contains(giftItem.Key))
+                    if (!items[giftItem.Key].Downloadables.Contains(download))
                     {
-                        foreach (var download in giftItem.Value.Downloadables)
-                        {
-                            if (!items[giftItem.Key].Downloadables.Contains(download))
-                            {
-                                items[giftItem.Key].Downloadables.Add(download);
-                            }
-                        }
+                        items[giftItem.Key].Downloadables.Add(download);
                     }
                 }
             }
@@ -365,7 +361,7 @@ public class BoothPageParser
         return items;
     }
 
-    private static BoothJsonItem? AddItemsFromJson(string json, string id, ref Dictionary<string, BoothItemAssets> items)
+    private static void AddItemsFromJson(string json, string id, ref Dictionary<string, BoothItemAssets> items)
     {
         var downloadCollection = RegexStore.DownloadRegex.Matches(json)
                                 .Select(match => match.Value);
@@ -379,22 +375,18 @@ public class BoothPageParser
         }
 
         var boothJsonItem = JsonConvert.DeserializeObject<BoothJsonItem>(json);
-        if (boothJsonItem?.Images != null)
+        if (boothJsonItem?.Images == null) return;
+        foreach (Image image in boothJsonItem.Images)
         {
-            foreach (Image image in boothJsonItem.Images)
+            if (!string.IsNullOrWhiteSpace(image.Original) && !items[id].Images.Contains(image.Original))
             {
-                if (!string.IsNullOrWhiteSpace(image.Original) && !items[id].Images.Contains(image.Original))
-                {
-                    items[id].Images.Add(image.Original);
-                }
-                else if (!string.IsNullOrWhiteSpace(image.Resized) && !items[id].Images.Contains(image.Resized))
-                {
-                    items[id].Images.Add(image.Resized);
-                }
+                items[id].Images.Add(image.Original);
+            }
+            else if (!string.IsNullOrWhiteSpace(image.Resized) && !items[id].Images.Contains(image.Resized))
+            {
+                items[id].Images.Add(image.Resized);
             }
         }
-
-        return boothJsonItem;
     }
 
     private static async Task<int> GetPageCount(string path, CancellationToken cancellationToken = default)
