@@ -1,5 +1,6 @@
 ﻿using System.CommandLine;
 using System.CommandLine.Builder;
+using System.CommandLine.Invocation;
 using System.CommandLine.Parsing;
 using System.Reflection;
 using BoothDownloader.Configuration;
@@ -61,6 +62,12 @@ internal static class BoothDownloader
             getDefaultValue: () => false
         );
 
+        var forceOption = new Option<bool>(
+            name: "--force",
+            description: "Force every selected item to be downloaded again. Avoid using this for large libraries.",
+            getDefaultValue: () => false
+        );
+
         var registerOption = new Option<bool>(
             name: "--register",
             description: "Register the booth downloader protocol. Application will close after completed.",
@@ -78,13 +85,22 @@ internal static class BoothDownloader
         rootCommand.AddOption(outputDirectoryOption);
         rootCommand.AddOption(maxRetriesOption);
         rootCommand.AddOption(debugOption);
+        rootCommand.AddOption(forceOption);
         rootCommand.AddOption(registerOption);
         rootCommand.AddOption(unregisterOption);
 
-        var cancellationTokenValueSource = new CancellationTokenValueSource();
-
-        rootCommand.SetHandler(async (registerProtocol, unregisterProtocol, configFile, boothInput, outputDirectory, maxRetries, debug, cancellationToken) =>
+        rootCommand.SetHandler(async (InvocationContext context) =>
         {
+            var registerProtocol = context.ParseResult.GetValueForOption(registerOption);
+            var unregisterProtocol = context.ParseResult.GetValueForOption(unregisterOption);
+            var configFile = context.ParseResult.GetValueForOption(configOption)!;
+            var boothInput = context.ParseResult.GetValueForOption(boothOption);
+            var outputDirectory = context.ParseResult.GetValueForOption(outputDirectoryOption)!;
+            var maxRetries = context.ParseResult.GetValueForOption(maxRetriesOption);
+            var debug = context.ParseResult.GetValueForOption(debugOption);
+            var force = context.ParseResult.GetValueForOption(forceOption);
+            var cancellationToken = context.GetCancellationToken();
+
             if (debug)
             {
                 LoggerHelper.GlobalLogger.LogInformation("Arguments:\n{args}", string.Join('\n', args));
@@ -104,24 +120,33 @@ internal static class BoothDownloader
 
             BoothConfig.Setup(configFile);
 
-            #region First Boot
-
-            if (string.IsNullOrWhiteSpace(BoothConfig.Instance.Cookie))
+            while (true)
             {
-                Console.WriteLine("Please paste in your cookie from browser.\n");
-                var cookie = Console.ReadLine();
-                BoothConfig.Instance.Cookie = string.IsNullOrWhiteSpace(cookie) ? BoothConfig.AnonymousCookie : cookie;
-                BoothConfig.ConfigInstance.Save();
-                LoggerHelper.GlobalLogger.LogInformation("Cookie set");
+                #region First Boot
+
+                if (string.IsNullOrWhiteSpace(BoothConfig.Instance.Cookie))
+                {
+                    Console.WriteLine("Please paste in your cookie from browser, or press Enter for anonymous mode.\n");
+                    var cookie = Console.ReadLine();
+                    BoothConfig.Instance.Cookie = string.IsNullOrWhiteSpace(cookie) ? BoothConfig.AnonymousCookie : cookie;
+                    BoothConfig.ConfigInstance.Save();
+                    LoggerHelper.GlobalLogger.LogInformation("Cookie set");
+                }
+
+                #endregion
+
+                #region Prep Booth Client
+
+                await BoothHttpClientManager.Setup(cancellationToken);
+                if (!string.IsNullOrWhiteSpace(BoothConfig.Instance.Cookie))
+                {
+                    break;
+                }
+
+                Console.WriteLine("BOOTH rejected that cookie. Copy the value of _plaza_session_nktz7u and try again.\n");
+
+                #endregion
             }
-
-            #endregion
-
-            #region Prep Booth Client
-
-            await BoothHttpClientManager.Setup(cancellationToken);
-
-            #endregion
 
             if (string.IsNullOrEmpty(boothInput))
             {
@@ -217,7 +242,7 @@ internal static class BoothDownloader
 
             if (items.Count > 0)
             {
-                await BoothBatchDownloader.DownloadAsync(items, outputDirectory, maxRetries, debug, cancellationToken);
+                await BoothBatchDownloader.DownloadAsync(items, outputDirectory, maxRetries, debug, force, cancellationToken);
             }
             else
             {
@@ -225,7 +250,7 @@ internal static class BoothDownloader
                 Thread.Sleep(5000);
                 Environment.Exit(0);
             }
-        }, registerOption, unregisterOption, configOption, boothOption, outputDirectoryOption, maxRetriesOption, debugOption, cancellationTokenValueSource);
+        });
 
         var commandLineBuilder = new CommandLineBuilder(rootCommand)
             .UseHelp();
