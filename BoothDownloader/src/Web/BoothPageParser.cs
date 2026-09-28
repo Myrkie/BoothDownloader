@@ -32,8 +32,7 @@ public class BoothPageParser
                     var htmlDoc = new HtmlDocument();
                     htmlDoc.LoadHtml(content);
 
-                    var itemsList = htmlDoc.DocumentNode.Descendants("div")
-                        .Where(node => node.GetAttributeValue("class", string.Empty).Contains("mb-16"));
+                    var itemsList = FindItemContainers(htmlDoc);
 
                     if (itemsList?.Any() == true)
                     {
@@ -147,6 +146,50 @@ public class BoothPageParser
             Console.WriteLine();
         }
         return items;
+    }
+
+    private static IReadOnlyCollection<HtmlNode> FindItemContainers(HtmlDocument htmlDoc)
+    {
+        // BOOTH's generated CSS classes change over time. Walk outward from each item link and use
+        // the largest container that still belongs to exactly one item instead of coupling parsing
+        // to a presentation class such as the former mb-16 card selector.
+        var itemContainers = new HashSet<HtmlNode>();
+        var itemLinks = htmlDoc.DocumentNode.Descendants("a")
+            .Select(link => new
+            {
+                Link = link,
+                Match = RegexStore.ItemRegex.Match(link.GetAttributeValue("href", string.Empty))
+            })
+            .Where(itemLink => itemLink.Match.Success);
+
+        foreach (var itemLink in itemLinks)
+        {
+            var boothId = itemLink.Match.Groups[1].Value;
+            HtmlNode? itemContainer = null;
+
+            foreach (var ancestor in itemLink.Link.Ancestors("div"))
+            {
+                var containedItemIds = RegexStore.ItemRegex.Matches(ancestor.InnerHtml)
+                    .Select(match => match.Groups[1].Value)
+                    .Distinct(StringComparer.Ordinal)
+                    .ToArray();
+
+                if (containedItemIds.Length != 1
+                    || !containedItemIds[0].Equals(boothId, StringComparison.Ordinal))
+                {
+                    break;
+                }
+
+                itemContainer = ancestor;
+            }
+
+            if (itemContainer != null)
+            {
+                itemContainers.Add(itemContainer);
+            }
+        }
+
+        return itemContainers;
     }
 
 

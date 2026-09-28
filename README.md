@@ -24,6 +24,12 @@ Usable format:
 > 
 > owned
 
+Items that have already been downloaded are compared with `_BoothDownloadCache.json` in the output directory. Unchanged items are skipped; only changed metadata or images are refreshed, while a change to purchased download links refreshes the complete item.
+
+When an existing item has no cache entry yet, it is adopted as the initial baseline without being downloaded again. Use `--force` with that specific item if it was already outdated before the cache was created.
+
+Use `--force` to download every selected item again. Avoid using it for an entire library unless a complete refresh is necessary.
+
 follow these video's or the automatic setup to get your access token, this is required for downloading free items and any items you have paid for.
 
 # Automatic setup
