@@ -3,6 +3,8 @@ using BoothDownloader.Configuration;
 using BoothDownloader.Miscellaneous;
 using Discord.Common.Helpers;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace BoothDownloader.Web;
 
@@ -10,6 +12,8 @@ public static class BoothHttpClientManager
 {
     private const string UrlAccountSettings = "https://accounts.booth.pm/settings";
     private const string UrlItemPage = "https://booth.pm/en/items";
+    private const string SessionCookieName = "_plaza_session_nktz7u";
+    private static readonly Uri BoothCookieUri = new("https://accounts.booth.pm");
 
     private static HttpRetryMessageHandler HttpHandler => new(new HttpClientHandler { AllowAutoRedirect = true });
 
@@ -32,37 +36,66 @@ public static class BoothHttpClientManager
             return;
         }
 
-        var httpClient = new HttpClient(HttpHandler)
+        var cookieContainer = new CookieContainer();
+        // BOOTH uses adult=t as its age-gate preference. It is not an authentication cookie.
+        cookieContainer.Add(new Cookie("adult", "t", "/", ".booth.pm"));
+        cookieContainer.Add(new Cookie(SessionCookieName, BoothConfig.Instance.Cookie, "/", ".booth.pm"));
+
+        /*
+            Account validation follows redirects because BOOTH may refresh the session while loading
+            the settings page. The CookieContainer retains those refreshed cookies for later requests.
+
+            Download requests use a second handler with redirects disabled so BoothBatchDownloader can
+            read the Location header and derive the actual CDN filename. Both handlers share the same
+            CookieContainer so the authenticated session is not lost between those two behaviors.
+        */
+        using var validationClient = new HttpClient(new HttpRetryMessageHandler(new HttpClientHandler
+        {
+            AllowAutoRedirect = true,
+            CookieContainer = cookieContainer
+        }))
         {
             DefaultRequestHeaders =
             {
-                { "Cookie", $"adult=t{(string.IsNullOrWhiteSpace(BoothConfig.Instance.Cookie) ? string.Empty : $"; _plaza_session_nktz7u={BoothConfig.Instance.Cookie}")}" },
                 { "User-Agent", BoothDownloader.UserAgent }
             }
         };
 
-        var response = await httpClient.GetAsync(UrlAccountSettings, cancellationToken);
-        if (response.StatusCode == HttpStatusCode.OK)
+        using var response = await validationClient.GetAsync(UrlAccountSettings, cancellationToken);
+        var finalUri = response.RequestMessage?.RequestUri;
+        var reachedAccountSettings = response.StatusCode == HttpStatusCode.OK
+                                     && finalUri != null
+                                     && finalUri.Host.Equals("accounts.booth.pm", StringComparison.OrdinalIgnoreCase)
+                                     && finalUri.AbsolutePath.TrimEnd('/').Equals("/settings", StringComparison.OrdinalIgnoreCase);
+
+        if (reachedAccountSettings)
         {
             LoggerHelper.GlobalLogger.LogInformation("Cookie is valid! - Purchased file downloads will function.");
-            /*
-                the original request to the booth accounts page uses different cloudfare settings and returns a 302
-                anything else after this accepting redirects results in redirect.location breaking for code later down the line.
-                this is because `resp.Headers.Location!.ToString();` becomes null in BoothBatchDownloader.cs
-            */
-            var handlerWithNoRedirects = new HttpRetryMessageHandler(new HttpClientHandler { AllowAutoRedirect = false });
+            var activeSessionCookie = cookieContainer.GetCookies(BoothCookieUri)[SessionCookieName]?.Value;
+            if (!string.IsNullOrWhiteSpace(activeSessionCookie)
+                && !string.Equals(activeSessionCookie, BoothConfig.Instance.Cookie, StringComparison.Ordinal))
+            {
+                BoothConfig.Instance.Cookie = activeSessionCookie;
+                BoothConfig.ConfigInstance.Save();
+                LoggerHelper.GlobalLogger.LogInformation("Saved refreshed BOOTH session cookie.");
+            }
+
+            var handlerWithNoRedirects = new HttpRetryMessageHandler(new HttpClientHandler
+            {
+                AllowAutoRedirect = false,
+                CookieContainer = cookieContainer
+            });
             HttpClient = new HttpClient(handlerWithNoRedirects)
             {
                 DefaultRequestHeaders =
                 {
-                    { "Cookie", $"adult=t{(string.IsNullOrWhiteSpace(BoothConfig.Instance.Cookie) ? string.Empty : $"; _plaza_session_nktz7u={BoothConfig.Instance.Cookie}")}" },
                     { "User-Agent", BoothDownloader.UserAgent }
                 }
             };
         }
         else
         {
-            LoggerHelper.GlobalLogger.LogWarning("Cookie is not valid. File downloads will not function! Image downloads will still function. Update your cookie in the config file.");
+            LoggerHelper.GlobalLogger.LogWarning("Cookie is not valid. BOOTH redirected the account request to {redirectUri}.", finalUri);
             BoothConfig.Instance.Cookie = string.Empty;
             BoothConfig.ConfigInstance.Save();
         }
@@ -83,6 +116,29 @@ public static class BoothHttpClientManager
         var response = await httpClient.GetAsync($"{UrlItemPage}/{id}.json", cancellationToken);
         response.EnsureSuccessStatusCode();
         var responseString = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        var mediaType = response.Content.Headers.ContentType?.MediaType;
+        if (mediaType == null
+            || (!mediaType.Equals("application/json", StringComparison.OrdinalIgnoreCase)
+                && !mediaType.EndsWith("+json", StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new HttpRequestException(
+                $"BOOTH returned {mediaType ?? "an unknown content type"} instead of JSON for item {id}.",
+                null,
+                response.StatusCode);
+        }
+
+        try
+        {
+            JToken.Parse(responseString);
+        }
+        catch (JsonReaderException exception)
+        {
+            throw new HttpRequestException(
+                $"BOOTH returned an invalid JSON payload for item {id}.",
+                exception,
+                response.StatusCode);
+        }
 
         return responseString;
     }
