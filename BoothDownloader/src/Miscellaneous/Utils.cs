@@ -134,11 +134,10 @@ public static class Utils
     [Conditional("WINDOWS_BUILD")]
     internal static void OpenDownloadFolder(string folderPath)
     {
-
-        var downloadPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, folderPath);
-        if (!Directory.Exists(folderPath))
+        var downloadPath = Path.Combine(AppContext.BaseDirectory, folderPath);
+        if (!Directory.Exists(downloadPath))
         {
-            downloadPath = AppDomain.CurrentDomain.BaseDirectory;
+            downloadPath = AppContext.BaseDirectory;
         }
         
         var startInfo = new ProcessStartInfo
@@ -154,7 +153,7 @@ public static class Utils
         }
         catch (System.ComponentModel.Win32Exception ex)
         {
-            LoggerHelper.GlobalLogger.LogError("Error: " + ex.Message);
+            LoggerHelper.GlobalLogger.LogError(ex, "Error in OpenDownloadFolder: ");
         }
     }
 
