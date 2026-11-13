@@ -1,28 +1,28 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
+        <AppVersion>10.0.10</AppVersion>
+        <AppName>BoothDownloader</AppName>
+        <AssemblyVersion>$(AppVersion)</AssemblyVersion>
+        <Version>$(AppVersion)</Version>
+        <FileVersion>$(AppVersion)</FileVersion>
+        <AssemblyName>$(AppName)</AssemblyName>
+        <PackageId>$(AppName)</PackageId>
+        <Authors>$(AppName)</Authors>
+        
+        <PublishAot>true</PublishAot>
         <OutputType>Exe</OutputType>
         <TargetFramework>net10.0</TargetFramework>
-        <RootNamespace>BoothDownloader</RootNamespace>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
-        <AssemblyVersion>10.0.9</AssemblyVersion>
-        <FileVersion>10.0.9</FileVersion>
-        <AssemblyName>BoothDownloader</AssemblyName>
-        <PackageId>BoothDownloader</PackageId>
-        <Authors>BoothDownloader</Authors>
         <ApplicationIcon>Icon\store-logo-booth.ico</ApplicationIcon>
-        <IsPackable>false</IsPackable>
         <SelfContained>true</SelfContained>
         <UseSystemResourceKeys>true</UseSystemResourceKeys>
         <InvariantGlobalization>true</InvariantGlobalization>
-        <StripSymbols>true</StripSymbols>
-        <DebugType>pdbonly</DebugType>
+        <PublishTrimmed>true</PublishTrimmed>
         <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
-        <PublishLzmaCompressed>true</PublishLzmaCompressed>
-        <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
         <Configurations>Release Windows;Release Linux</Configurations>
-        <Platforms>x64</Platforms>
+        <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
     </PropertyGroup>
 
     <PropertyGroup Condition=" '$(Configuration)' == 'Release Windows' ">

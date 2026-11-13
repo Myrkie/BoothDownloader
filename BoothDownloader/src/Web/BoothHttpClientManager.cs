@@ -4,8 +4,6 @@ using BoothDownloader.Configuration;
 using BoothDownloader.Miscellaneous;
 using Discord.Common.Helpers;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 
 namespace BoothDownloader.Web;
 
@@ -23,7 +21,7 @@ public static class BoothHttpClientManager
         DefaultRequestHeaders =
         {
             { "Cookie", "adult=t" },
-            { "User-Agent", BoothDownloader.UserAgent }
+            { "User-Agent", Constants.UserAgent }
         }
     };
     public static HttpClient HttpClient { get; private set; } = AnonymousHttpClient;
@@ -33,7 +31,7 @@ public static class BoothHttpClientManager
     {
         if (BoothConfig.Instance.Cookie == BoothConfig.AnonymousCookie)
         {
-            LoggerHelper.GlobalLogger.LogWarning("Using anonymous cookie - Purchased file downloads will not function.");
+            LoggerHelper.GlobalLogger.LogWarning("Using anonymous cookie - Purchased file downloads will not function");
             return;
         }
 
@@ -54,16 +52,13 @@ public static class BoothHttpClientManager
         {
             AllowAutoRedirect = true,
             CookieContainer = cookieContainer
-        }))
-        {
-            DefaultRequestHeaders =
-            {
-                { "User-Agent", BoothDownloader.UserAgent }
-            }
-        };
+        }));
+
+        validationClient.DefaultRequestHeaders.Add("User-Agent", Constants.UserAgent);
 
         using var response = await validationClient.GetAsync(UrlAccountSettings, cancellationToken);
         var finalUri = response.RequestMessage?.RequestUri;
+
         var reachedAccountSettings = response.StatusCode == HttpStatusCode.OK
                                      && finalUri != null
                                      && finalUri.Host.Equals("accounts.booth.pm", StringComparison.OrdinalIgnoreCase)
@@ -71,14 +66,16 @@ public static class BoothHttpClientManager
 
         if (reachedAccountSettings)
         {
-            LoggerHelper.GlobalLogger.LogInformation("Cookie is valid! - Purchased file downloads will function.");
+            LoggerHelper.GlobalLogger.LogInformation("Cookie is valid! - Purchased file downloads will function");
+
             var activeSessionCookie = cookieContainer.GetCookies(BoothCookieUri)[SessionCookieName]?.Value;
+
             if (!string.IsNullOrWhiteSpace(activeSessionCookie)
                 && !string.Equals(activeSessionCookie, BoothConfig.Instance.Cookie, StringComparison.Ordinal))
             {
                 BoothConfig.Instance.Cookie = activeSessionCookie;
                 BoothConfig.ConfigInstance.Save();
-                LoggerHelper.GlobalLogger.LogInformation("Saved refreshed BOOTH session cookie.");
+                LoggerHelper.GlobalLogger.LogInformation("Saved refreshed BOOTH session cookie");
             }
 
             var handlerWithNoRedirects = new HttpRetryMessageHandler(new HttpClientHandler
@@ -86,17 +83,18 @@ public static class BoothHttpClientManager
                 AllowAutoRedirect = false,
                 CookieContainer = cookieContainer
             });
+
             HttpClient = new HttpClient(handlerWithNoRedirects)
             {
                 DefaultRequestHeaders =
                 {
-                    { "User-Agent", BoothDownloader.UserAgent }
+                    { "User-Agent", Constants.UserAgent }
                 }
             };
         }
         else
         {
-            LoggerHelper.GlobalLogger.LogWarning("Cookie is not valid. BOOTH redirected the account request to {redirectUri}.", finalUri);
+            LoggerHelper.GlobalLogger.LogWarning("Cookie is not valid. BOOTH redirected the account request to {RedirectUri}", finalUri);
             BoothConfig.Instance.Cookie = string.Empty;
             BoothConfig.ConfigInstance.Save();
         }
