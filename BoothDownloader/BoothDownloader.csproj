@@ -7,20 +7,19 @@
         <Version>$(AppVersion)</Version>
         <FileVersion>$(AppVersion)</FileVersion>
         <AssemblyName>$(AppName)</AssemblyName>
-        <PackageId>$(AppName)</PackageId>
-        <Authors>$(AppName)</Authors>
         
-        <PublishAot>true</PublishAot>
         <OutputType>Exe</OutputType>
         <TargetFramework>net10.0</TargetFramework>
-        <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
-        <ApplicationIcon>Icon\store-logo-booth.ico</ApplicationIcon>
-        <SelfContained>true</SelfContained>
-        <UseSystemResourceKeys>true</UseSystemResourceKeys>
-        <InvariantGlobalization>true</InvariantGlobalization>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <PublishAot>true</PublishAot>
         <PublishTrimmed>true</PublishTrimmed>
-        <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+        <Authors>Myrkur, DubyaDude</Authors>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <EnableRuntimeMarshalling>true</EnableRuntimeMarshalling>
+        
+        <ApplicationIcon>Icon\store-logo-booth.ico</ApplicationIcon>
+        <UseSystemResourceKeys>true</UseSystemResourceKeys>
         <Configurations>Release Windows;Release Linux</Configurations>
         <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
     </PropertyGroup>
