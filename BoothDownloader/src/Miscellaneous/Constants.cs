@@ -4,10 +4,9 @@ namespace BoothDownloader.Miscellaneous;
 
 public static class Constants
 {
-    internal static readonly string FormattedVersion = 
-        $"{Assembly.GetExecutingAssembly().GetName().Version!.Major}." +
-        $"{Assembly.GetExecutingAssembly().GetName().Version!.Minor}." +
-        $"{Assembly.GetExecutingAssembly().GetName().Version!.Build}";
+    internal static readonly string FormattedVersion = Assembly.GetExecutingAssembly().GetName().Version is { } version
+        ? $"{version.Major}.{version.Minor}.{version.Build}"
+        : "Unknown";
     
     internal static readonly string UserAgent = $"BoothDownloader/{FormattedVersion} (+{GithubUrl})";
     
