@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using System.Text.Json;
 using BoothDownloader.Configuration;
 using BoothDownloader.Miscellaneous;
 using Discord.Common.Helpers;
@@ -101,48 +102,30 @@ public static class BoothHttpClientManager
         }
     }
 
-    public static async Task<string> GetItemPageAsync(string id, bool asAnonymous = false, CancellationToken cancellationToken = default)
-    {
-        var httpClient = asAnonymous ? AnonymousHttpClient : HttpClient;
-        var response = await httpClient.GetAsync($"{UrlItemPage}/{id}", cancellationToken);
-        var responseString = await response.Content.ReadAsStringAsync(cancellationToken);
-
-        return responseString;
-    }
-
     public static async Task<string> GetItemJsonAsync(string id, bool asAnonymous = false, CancellationToken cancellationToken = default)
     {
         var httpClient = asAnonymous ? AnonymousHttpClient : HttpClient;
         var response = await httpClient.GetAsync($"{UrlItemPage}/{id}.json", cancellationToken);
         response.EnsureSuccessStatusCode();
+
         var responseString = await response.Content.ReadAsStringAsync(cancellationToken);
 
         var mediaType = response.Content.Headers.ContentType?.MediaType;
         if (mediaType == null || (!mediaType.Equals("application/json", StringComparison.OrdinalIgnoreCase)
                                   && !mediaType.EndsWith("+json", StringComparison.OrdinalIgnoreCase)))
         {
-            throw new HttpRequestException(
-                $"BOOTH returned {mediaType ?? "an unknown content type"} instead of JSON for item {id}.", null,
-                response.StatusCode);
+            throw new HttpRequestException($"BOOTH returned {mediaType ?? "an unknown content type"} instead of JSON for item {id}.", null, response.StatusCode);
         }
 
         try
         {
-            JToken.Parse(responseString);
+            using var document = JsonDocument.Parse(responseString);
         }
-        catch (JsonReaderException exception)
+        catch (JsonException exception)
         {
-            throw new HttpRequestException(
-                $"BOOTH returned an invalid JSON payload for item {id}.",
-                exception,
-                response.StatusCode);
+            throw new HttpRequestException($"BOOTH returned an invalid JSON payload for item {id}.", exception, response.StatusCode);
         }
 
         return responseString;
-    }
-
-    public class DownloadFailedException : Exception
-    {
-        public override string Message => "The order collection downloader has failed";
     }
 }

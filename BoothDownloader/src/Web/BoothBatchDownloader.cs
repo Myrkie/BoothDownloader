@@ -1,11 +1,11 @@
 using System.Collections.Concurrent;
 using System.IO.Compression;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using BoothDownloader.Configuration;
 using BoothDownloader.Miscellaneous;
 using Discord.Common.Helpers;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using ShellProgressBar;
 using Unidecode.NET;
 
@@ -30,16 +30,13 @@ public static class BoothBatchDownloader
 
         if (debug)
         {
-            LoggerHelper.GlobalLogger.LogInformation("Writing {fileName}", BatchDownloadDebug);
-            File.WriteAllText(
-                Path.Combine(outputDir, BatchDownloadDebug),
-                JsonConvert.SerializeObject(boothItems, Formatting.Indented));
+            LoggerHelper.GlobalLogger.LogInformation("Writing {FileName}", BatchDownloadDebug);
+            await File.WriteAllTextAsync(Path.Combine(outputDir, BatchDownloadDebug), JsonSerializer.Serialize(boothItems, BoothJsonContext.Default.DictionaryStringBoothItemAssets), cancellationToken);
         }
 
         if (force)
         {
-            LoggerHelper.GlobalLogger.LogWarning(
-                "Forced download enabled. Every selected item will be downloaded again; avoid this for large libraries");
+            LoggerHelper.GlobalLogger.LogWarning("Forced download enabled. Every selected item will be downloaded again; avoid this for large libraries");
         }
 
         foreach (var boothItem in boothItems)
@@ -50,27 +47,22 @@ public static class BoothBatchDownloader
             var currentItem = CreateCurrentSnapshot(boothItem.Value, cachedItem);
             var change = GetChange(outputDir, boothId, currentItem, cachedItem, force);
 
-            if (change == DownloadChange.Baseline)
+            switch (change)
             {
-                PreserveExistingMetadata(outputDir, boothId, currentItem);
-                LoggerHelper.GlobalLogger.LogWarning(
-                    "Existing item {BoothId} has no download cache. Adopting it without downloading; use --force with this item if you know it is outdated",
-                    boothId);
-                cache.Items[boothId] = currentItem;
-                cache.Save(outputDir);
-                continue;
+                case DownloadChange.Baseline:
+                    PreserveExistingMetadata(outputDir, boothId, currentItem);
+                    LoggerHelper.GlobalLogger.LogWarning("Existing item {BoothId} has no download cache. Adopting it without downloading; use --force with this item if you know it is outdated", boothId);
+                    cache.Items[boothId] = currentItem;
+                    cache.Save(outputDir);
+                    continue;
+                case DownloadChange.None:
+                    LoggerHelper.GlobalLogger.LogInformation("Skipping unchanged item {BoothId}", boothId);
+                    cache.Items[boothId] = currentItem;
+                    cache.Save(outputDir);
+                    continue;
             }
 
-            if (change == DownloadChange.None)
-            {
-                LoggerHelper.GlobalLogger.LogInformation("Skipping unchanged item {BoothId}", boothId);
-                cache.Items[boothId] = currentItem;
-                cache.Save(outputDir);
-                continue;
-            }
-
-            LoggerHelper.GlobalLogger.LogInformation(
-                "Updating {BoothId}: {Change}", boothId, GetChangeDescription(change));
+            LoggerHelper.GlobalLogger.LogInformation("Updating {BoothId}: {Change}", boothId, GetChangeDescription(change));
 
             var entryDir = PrepareEntryDirectory(outputDir, boothId, change);
             var operationSucceeded = await ApplyChangeAsync(
@@ -83,9 +75,7 @@ public static class BoothBatchDownloader
 
             if (!operationSucceeded)
             {
-                LoggerHelper.GlobalLogger.LogError(
-                    "Update for {BoothId} was incomplete. Its cache was not changed, so it will be retried next time",
-                    boothId);
+                LoggerHelper.GlobalLogger.LogError("Update for {BoothId} was incomplete. Its cache was not changed, so it will be retried next time", boothId);
                 continue;
             }
 
@@ -95,7 +85,7 @@ public static class BoothBatchDownloader
             }
             else
             {
-                LoggerHelper.GlobalLogger.LogInformation("ENVFileDIR: {directoryPath}", entryDir);
+                LoggerHelper.GlobalLogger.LogInformation("ENVFileDIR: {DirectoryPath}", entryDir);
             }
 
             cache.Items[boothId] = currentItem;
@@ -131,16 +121,14 @@ public static class BoothBatchDownloader
         return currentItem;
     }
 
-    private static Dictionary<string, string> CopyKnownFiles(IEnumerable<string> currentUrls,
-        Dictionary<string, string> cachedFiles)
+    private static Dictionary<string, string> CopyKnownFiles(IEnumerable<string> currentUrls, Dictionary<string, string> cachedFiles)
     {
         var currentUrlSet = currentUrls.ToHashSet(StringComparer.Ordinal);
         return cachedFiles.Where(file => currentUrlSet.Contains(file.Key))
             .ToDictionary(file => file.Key, file => file.Value, StringComparer.Ordinal);
     }
 
-    private static DownloadChange GetChange(string outputDirectory, string boothId, BoothDownloadCacheItem currentItem,
-        BoothDownloadCacheItem? cachedItem, bool force)
+    private static DownloadChange GetChange(string outputDirectory, string boothId, BoothDownloadCacheItem currentItem, BoothDownloadCacheItem? cachedItem, bool force)
     {
         if (force || !OutputExists(outputDirectory, boothId))
         {
@@ -211,19 +199,21 @@ public static class BoothBatchDownloader
         }
 
         currentItem.BoothPageJson = existingJson;
-        var item = JsonConvert.DeserializeObject<BoothJsonItem>(existingJson);
+        var item = JsonSerializer.Deserialize(existingJson, BoothJsonContext.Default.BoothJsonItem);
         if (item?.Images == null)
         {
             return;
         }
 
-        currentItem.Images = item.Images
-            .Select(image => !string.IsNullOrWhiteSpace(image.Original) ? image.Original : image.Resized)
-            .Where(url => !string.IsNullOrWhiteSpace(url))
-            .Select(url => url!)
-            .Distinct(StringComparer.Ordinal)
-            .Order(StringComparer.Ordinal)
-            .ToList();
+        currentItem.Images =
+        [
+            .. item.Images
+                .Select(image => !string.IsNullOrWhiteSpace(image.Original) ? image.Original : image.Resized)
+                .Where(url => !string.IsNullOrWhiteSpace(url))
+                .Select(url => url!)
+                .Distinct(StringComparer.Ordinal)
+                .Order(StringComparer.Ordinal)
+        ];
     }
 
     private static bool SetEquals(IEnumerable<string> left, IEnumerable<string> right)
@@ -256,9 +246,9 @@ public static class BoothBatchDownloader
 
         try
         {
-            return JToken.DeepEquals(JToken.Parse(left), JToken.Parse(right));
+            return JsonNode.DeepEquals(JsonNode.Parse(left), JsonNode.Parse(right));
         }
-        catch (JsonReaderException)
+        catch (JsonException)
         {
             return false;
         }
@@ -294,9 +284,7 @@ public static class BoothBatchDownloader
         return Directory.CreateDirectory(entryPath).ToString();
     }
 
-    private static async Task<bool> ApplyChangeAsync(BoothDownloadCacheItem currentItem,
-        BoothDownloadCacheItem? cachedItem, string entryDir, int maxRetries, DownloadChange change,
-        CancellationToken cancellationToken)
+    private static async Task<bool> ApplyChangeAsync(BoothDownloadCacheItem currentItem, BoothDownloadCacheItem? cachedItem, string entryDir, int maxRetries, DownloadChange change, CancellationToken cancellationToken)
     {
         WriteMetadata(entryDir, currentItem);
 
@@ -471,8 +459,7 @@ public static class BoothBatchDownloader
         File.Delete(pageJsonPath);
         if (currentItem.InnerHtml.Count > 0)
         {
-            File.WriteAllText(innerHtmlPath, JsonConvert.SerializeObject(currentItem.InnerHtml));
-        }
+            File.WriteAllText(innerHtmlPath, JsonSerializer.Serialize(currentItem.InnerHtml, BoothJsonContext.Default.ListString));        }
         else
         {
             File.Delete(innerHtmlPath);

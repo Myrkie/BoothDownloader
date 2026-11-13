@@ -1,4 +1,4 @@
-using Newtonsoft.Json;
+using System.Text.Json;
 
 namespace BoothDownloader.Web;
 
@@ -6,29 +6,28 @@ internal sealed class BoothDownloadCache
 {
     private const string FileName = "_BoothDownloadCache.json";
 
-    [JsonProperty(nameof(Version))]
     public int Version { get; set; } = 1;
 
-    [JsonProperty(nameof(Items))]
     public Dictionary<string, BoothDownloadCacheItem> Items { get; set; } = [];
 
     internal static BoothDownloadCache Load(string outputDirectory)
     {
         var path = Path.Combine(outputDirectory, FileName);
+
         if (File.Exists(path))
         {
-            return JsonConvert.DeserializeObject<BoothDownloadCache>(File.ReadAllText(path))
+            return JsonSerializer.Deserialize( File.ReadAllText(path), BoothJsonContext.Default.BoothDownloadCache)
                    ?? new BoothDownloadCache();
         }
 
         var legacyDebugPath = Path.Combine(outputDirectory, "_Debug_BatchDownloadDebug.json");
+
         if (!File.Exists(legacyDebugPath))
         {
             return new BoothDownloadCache();
         }
 
-        var legacyItems = JsonConvert.DeserializeObject<Dictionary<string, BoothItemAssets>>(
-            File.ReadAllText(legacyDebugPath));
+        var legacyItems = JsonSerializer.Deserialize(File.ReadAllText(legacyDebugPath), BoothJsonContext.Default.DictionaryStringBoothItemAssets);
 
         return new BoothDownloadCache
         {
@@ -42,32 +41,27 @@ internal sealed class BoothDownloadCache
     {
         var path = Path.Combine(outputDirectory, FileName);
         var temporaryPath = path + ".tmp";
-        File.WriteAllText(temporaryPath, JsonConvert.SerializeObject(this, Formatting.Indented));
+
+        File.WriteAllText(temporaryPath, JsonSerializer.Serialize(this, BoothJsonContext.Default.BoothDownloadCache));
+
         File.Move(temporaryPath, path, true);
     }
 }
 
 internal sealed class BoothDownloadCacheItem
 {
-    [JsonProperty(nameof(BoothPageJson))]
     public string BoothPageJson { get; set; } = string.Empty;
 
-    [JsonProperty(nameof(InnerHtml))]
     public List<string> InnerHtml { get; set; } = [];
 
-    [JsonProperty(nameof(Images))]
     public List<string> Images { get; set; } = [];
 
-    [JsonProperty(nameof(Downloadables))]
     public List<string> Downloadables { get; set; } = [];
 
-    [JsonProperty(nameof(ImageFiles))]
     public Dictionary<string, string> ImageFiles { get; set; } = [];
 
-    [JsonProperty(nameof(DownloadableFiles))]
     public Dictionary<string, string> DownloadableFiles { get; set; } = [];
 
-    [JsonProperty(nameof(ItemPageUnavailable))]
     public bool ItemPageUnavailable { get; set; }
 
     internal static BoothDownloadCacheItem From(BoothItemAssets item)

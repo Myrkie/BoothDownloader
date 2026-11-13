@@ -1,14 +1,14 @@
 using System.Collections.Concurrent;
+using System.Text.Json;
 using BoothDownloader.Miscellaneous;
 using Discord.Common.Helpers;
 using HtmlAgilityPack;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using ShellProgressBar;
 
 namespace BoothDownloader.Web;
 
-public class BoothPageParser
+public abstract class BoothPageParser
 {
     public static async Task<Dictionary<string, BoothItemAssets>> GetPageItemsAsync(string path, Dictionary<string, BoothItemAssets>? incomingItems = null, bool getJsons = true, CancellationToken cancellationToken = default)
     {
@@ -34,7 +34,7 @@ public class BoothPageParser
 
                     var itemsList = FindItemContainers(htmlDoc);
 
-                    if (itemsList?.Any() == true)
+                    if (itemsList.Count != 0)
                     {
                         foreach (var item in itemsList)
                         {
@@ -77,7 +77,7 @@ public class BoothPageParser
                         pageProgressBar.Message = $"Going through pages ({remainingPages}/{pageCount} Left)";
                     }
                 }
-            })));
+            }, cancellationToken)));
         }
 
         Console.WriteLine();
@@ -139,7 +139,7 @@ public class BoothPageParser
                                 jsonProgressBar.Message = $"Getting booth jsons ({remainingItems}/{totalItems} Left)";
                             }
                         }
-                    })));
+                    }, cancellationToken)));
                 }
             }
 
@@ -237,7 +237,7 @@ public class BoothPageParser
 
                     if (!hasAGiftedItem)
                     {
-                        var boothJsonItem = JsonConvert.DeserializeObject<BoothJsonItem>(itemPageAuthed);
+                        var boothJsonItem = JsonSerializer.Deserialize(itemPageAuthed, BoothJsonContext.Default.BoothJsonItem);
                         if (boothJsonItem?.Gift != null)
                         {
                             hasAGiftedItem = true;
@@ -265,7 +265,7 @@ public class BoothPageParser
                         progressBar.Message = $"Getting booth jsons ({remainingItems}/{items.Count} Left)";
                     }
                 }
-            })));
+            }, cancellationToken)));
         }
 
         Console.WriteLine();
@@ -292,7 +292,7 @@ public class BoothPageParser
                         var downloadNodes = htmlDoc.DocumentNode.Descendants("div")
                             .Where(node => node.GetAttributeValue("class", string.Empty).Equals("sheet sheet--p400 mobile:pt-[13px] mobile:px-16 mobile:pb-8"));
 
-                        if (downloadNodes?.Any() == true)
+                        if (downloadNodes.Any())
                         {
                             foreach (var downloadNode in downloadNodes)
                             {
@@ -321,28 +321,28 @@ public class BoothPageParser
                             progressBar.Message = $"Getting orders ({remainingOrders}/{orders.Count} Left)";
                         }
                     }
-                })));
+                }, cancellationToken)));
             }
 
             Console.WriteLine();
         }
 
-        foreach (var (Id, Url) in downloads)
+        foreach (var (id, url) in downloads)
         {
-            if (!string.IsNullOrWhiteSpace(Url) && !items[Id].Downloadables.Contains(Url))
+            if (!string.IsNullOrWhiteSpace(url) && !items[id].Downloadables.Contains(url))
             {
-                items[Id].Downloadables.Add(Url);
+                items[id].Downloadables.Add(url);
             }
         }
 
         if (!hasAGiftedItem) return items;
         if (gotGiftPage)
         {
-            LoggerHelper.GlobalLogger.LogInformation("Gift item detected when grabbing from item page, but already grabbed gifts previously.");
+            LoggerHelper.GlobalLogger.LogInformation("Gift item detected when grabbing from item page, but already grabbed gifts previously");
         }
         else
         {
-            LoggerHelper.GlobalLogger.LogInformation("Gift item detected when grabbing from item page, going through gifts to get downloadables.");
+            LoggerHelper.GlobalLogger.LogInformation("Gift item detected when grabbing from item page, going through gifts to get downloadables");
             var giftItems = await BoothPageParser.GetPageItemsAsync("library/gifts", [], false, cancellationToken: cancellationToken);
 
             foreach (var giftItem in giftItems)
@@ -374,7 +374,7 @@ public class BoothPageParser
             }
         }
 
-        var boothJsonItem = JsonConvert.DeserializeObject<BoothJsonItem>(json);
+        var boothJsonItem = JsonSerializer.Deserialize(json, BoothJsonContext.Default.BoothJsonItem);
         if (boothJsonItem?.Images == null) return;
         foreach (Image image in boothJsonItem.Images)
         {

@@ -1,38 +1,42 @@
-﻿using Newtonsoft.Json;
+﻿using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 
 namespace BoothDownloader.Configuration;
 
-public class Config<T>
-    where T : new()
+public class Config<T> where T : new()
 {
     public T Instance { get; private set; }
-    private readonly string FileLocation;
-    private readonly JsonSerializerSettings JsonSerializerSettings = new();
 
-    public Config(string path)
+    private readonly string _fileLocation;
+    private readonly JsonTypeInfo<T> _jsonTypeInfo;
+
+    public Config(string path, JsonTypeInfo<T> jsonTypeInfo)
     {
-        FileLocation = path;
-        Instance = new();
+        _fileLocation = path;
+        _jsonTypeInfo = jsonTypeInfo;
+        Instance = new T();
         Load();
     }
 
     public void Load()
     {
-        Instance = new();
-        if (File.Exists(FileLocation))
+        Instance = new T();
+
+        if (File.Exists(_fileLocation))
         {
-            var cfgInstance = JsonConvert.DeserializeObject<T>(File.ReadAllText(FileLocation), JsonSerializerSettings);
+            var cfgInstance = JsonSerializer.Deserialize( File.ReadAllText(_fileLocation), _jsonTypeInfo);
 
             if (cfgInstance != null)
             {
                 Instance = cfgInstance;
             }
         }
+
         Save();
     }
 
     public void Save()
     {
-        File.WriteAllText(FileLocation, JsonConvert.SerializeObject(Instance, Formatting.Indented));
+        File.WriteAllText(_fileLocation, JsonSerializer.Serialize(Instance, _jsonTypeInfo));
     }
 }
