@@ -1,4 +1,4 @@
-﻿FROM mcr.microsoft.com/dotnet/nightly/sdk:10.0-aot
+﻿FROM mcr.microsoft.com/dotnet/nightly/sdk:10.0-aot AS publish
 
 WORKDIR /src
 
@@ -12,3 +12,7 @@ RUN dotnet publish BoothDownloader.csproj \
     -p:PublishAot=true \
     --self-contained true \
     -o /out
+
+FROM scratch AS export
+
+COPY --from=publish /out/ /

@@ -25,29 +25,17 @@ if ($DockerExitCode -ne 0) {
 $ProjectDir = Join-Path $PSScriptRoot "BoothDownloader"
 $PublishDir = Join-Path $PSScriptRoot "publish\Linux64"
 
-Write-Host "Building Linux Native AOT Docker image..."
-
-docker build --pull --no-cache -f (Join-Path $ProjectDir "Dockerfile") -t booth-downloader-publisher $PSScriptRoot
-
-if ($LASTEXITCODE -ne 0) {
-    throw "Docker build failed with exit code $LASTEXITCODE. Check the Docker build output above."
-}
-
 New-Item -ItemType Directory -Force -Path $PublishDir | Out-Null
 
 $PublishDir = (Resolve-Path $PublishDir).Path
 $DockerPublishDir = $PublishDir -replace '\\', '/'
 
-Write-Host "Exporting Linux Native AOT publish..."
+Write-Host "Publishing Linux Native AOT directly to output directory..."
 
-docker run --rm `
-    --mount "type=bind,source=$DockerPublishDir,target=/export" `
-    --entrypoint /bin/bash `
-    booth-downloader-publisher `
-    -c 'cp -a /out/. /export/'
+docker build -f (Join-Path $ProjectDir "Dockerfile") --output "type=local,dest=$DockerPublishDir" $PSScriptRoot
 
 if ($LASTEXITCODE -ne 0) {
-    throw "Docker export failed with exit code $LASTEXITCODE."
+    throw "Docker publish failed with exit code $LASTEXITCODE. Check the Docker build output above."
 }
 
 Write-Host ""
