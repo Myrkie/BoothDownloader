@@ -16,11 +16,9 @@ public static class BoothDownloaderProtocol
 #pragma warning disable CA1416
     public static void RegisterContext()
     {
-#if WINDOWS_BUILD
         try
         {
-            using (RegistryKey key = Registry.CurrentUser.OpenSubKey(RegistryPath, true) ??
-                                      Registry.CurrentUser.CreateSubKey(RegistryPath))
+            using (RegistryKey key = Registry.CurrentUser.OpenSubKey(RegistryPath, true) ?? Registry.CurrentUser.CreateSubKey(RegistryPath))
             {
                 if (key != null)
                 {
@@ -33,9 +31,12 @@ public static class BoothDownloaderProtocol
             {
                 if (commandKey != null)
                 {
-                    var commandValue = $"\"{Environment.GetCommandLineArgs()[0]}\" \"%1\"";
-                    string? existingCommandValue = commandKey?.GetValue("") as string;
-                    if (commandKey != null && existingCommandValue != commandValue)
+                    var executablePath = Environment.ProcessPath ?? throw new InvalidOperationException("Unable to determine executable path.");
+
+                    var commandValue = $"\"{executablePath}\" \"%1\"";
+                    string? existingCommandValue = commandKey.GetValue("") as string;
+
+                    if (existingCommandValue != commandValue)
                     {
                         commandKey.SetValue("", commandValue);
                     }
@@ -52,16 +53,10 @@ public static class BoothDownloaderProtocol
             Thread.Sleep(5000);
             throw;
         }
-#endif
-#if LINUX_BUILD
-        LoggerHelper.GlobalLogger.LogError("This operation is only supported on windows.");
-        Exit();
-#endif
     }
 
     public static void UnregisterContext()
     {
-#if WINDOWS_BUILD
         try
         {
             Registry.CurrentUser.DeleteSubKeyTree(RegistryPath);
@@ -75,15 +70,10 @@ public static class BoothDownloaderProtocol
             Thread.Sleep(5000);
             throw;
         }
-#endif
-#if LINUX_BUILD
-        LoggerHelper.GlobalLogger.LogError("This operation is only supported on windows.");
-        Exit();
-#endif
     }
 #pragma warning restore CA1416
 
-    private const string BoothProtocolPrefix = "boothdownloader://open/";
+    private const string BoothProtocolPrefix = "boothdownloader://open";
     private const string TokenArguement = "token";
     private const string IdArguement = "id";
     private const string PathArguement = "path";

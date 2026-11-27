@@ -17,13 +17,23 @@ internal static class BoothDownloader
 
         if (options.RegisterProtocol)
         {
+#if WINDOWS_BUILD
             BoothDownloaderProtocol.RegisterContext();
+#endif
+#if LINUX_BUILD
+            LoggerHelper.GlobalLogger.LogError("This operation is only supported on windows");
+#endif
             return 0;
         }
 
         if (options.UnregisterProtocol)
         {
+#if WINDOWS_BUILD
             BoothDownloaderProtocol.UnregisterContext();
+#endif
+#if LINUX_BUILD
+            LoggerHelper.GlobalLogger.LogError("This operation is only supported on windows");
+#endif
             return 0;
         }
 

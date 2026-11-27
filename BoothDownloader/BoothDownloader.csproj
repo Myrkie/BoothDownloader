@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <AppVersion>10.0.10</AppVersion>
+        <AppVersion>10.0.11</AppVersion>
         <AppName>BoothDownloader</AppName>
         <AssemblyVersion>$(AppVersion)</AssemblyVersion>
         <Version>$(AppVersion)</Version>
